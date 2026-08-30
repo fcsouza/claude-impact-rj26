@@ -30,4 +30,4 @@ jobs:
           curl -sS --fail-with-body -X POST "$DOKPLOY_URL/api/compose.deploy" \
             -H "x-api-key: $DOKPLOY_API_KEY" \
             -H 'content-type: application/json' \
-            -d "{\"json\":{\"composeId\":\"$COMPOSE_ID\"}}"
+            -d "{\"composeId\":\"$COMPOSE_ID\"}"
