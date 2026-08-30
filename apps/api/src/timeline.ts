@@ -23,6 +23,16 @@ export interface ItemTimeline {
   titulo: string;
 }
 
+function tituloDoEvento(acao: string, antes?: string, depois?: string): string {
+  if (antes && depois) {
+    return `${antes} → ${depois}`;
+  }
+  if (acao === 'abrir_vaga') {
+    return 'Vaga aberta e criança selecionada';
+  }
+  return acao.replace(/_/g, ' ');
+}
+
 /** Timeline unificada da inscrição: tentativa, resposta, status, nota e edição de contato. */
 export async function timelineDaInscricao(inscricaoId: string): Promise<ItemTimeline[]> {
   const opcoes = await db
@@ -149,12 +159,7 @@ export async function timelineDaInscricao(inscricaoId: string): Promise<ItemTime
       id: e.id,
       quando: e.criadoEm,
       tipo: e.entidade === 'convocacao' ? 'convocacao' : 'situacao',
-      titulo:
-        antes && depois
-          ? `${antes} → ${depois}`
-          : e.acao === 'abrir_vaga'
-            ? 'Vaga aberta e criança selecionada'
-            : e.acao.replace(/_/g, ' '),
+      titulo: tituloDoEvento(e.acao, antes, depois),
     });
   }
 

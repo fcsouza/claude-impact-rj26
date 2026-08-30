@@ -13,7 +13,7 @@ export function mock(nome: CanalNome): Channel {
         providerId?: string;
         status?: string;
         texto?: string;
-      };
+      } | null;
       if (!c) {
         return [];
       }

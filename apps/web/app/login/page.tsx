@@ -11,6 +11,9 @@ export default function Login() {
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
+  const mudarEmail = (e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value);
+  const mudarSenha = (e: React.ChangeEvent<HTMLInputElement>) => setSenha(e.target.value);
+
   async function entrar(evento: React.FormEvent) {
     evento.preventDefault();
     setEnviando(true);
@@ -43,7 +46,7 @@ export default function Login() {
           <input
             autoComplete="username"
             id="email"
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={mudarEmail}
             required
             type="email"
             value={email}
@@ -55,7 +58,7 @@ export default function Login() {
           <input
             autoComplete="current-password"
             id="senha"
-            onChange={(e) => setSenha(e.target.value)}
+            onChange={mudarSenha}
             required
             type="password"
             value={senha}

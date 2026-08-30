@@ -7,7 +7,7 @@ export function resend(): Channel {
   return {
     nome: 'email',
     parseWebhook(corpo: unknown): AtualizacaoTentativa[] {
-      const evento = corpo as { type?: string; data?: { email_id?: string } };
+      const evento = corpo as { type?: string; data?: { email_id?: string } } | null | undefined;
       const mapa: Record<string, AtualizacaoTentativa['status']> = {
         'email.bounced': 'falhou',
         'email.complained': 'falhou',
@@ -15,7 +15,10 @@ export function resend(): Channel {
         'email.opened': 'lido',
         'email.sent': 'enviado',
       };
-      const status = evento?.type ? mapa[evento.type] : undefined;
+      if (!evento?.type) {
+        return [];
+      }
+      const status = mapa[evento.type];
       return status ? [{ providerId: evento.data?.email_id, status }] : [];
     },
     provedor: 'resend',

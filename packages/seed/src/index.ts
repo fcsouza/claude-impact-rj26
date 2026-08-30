@@ -99,7 +99,6 @@ async function limpar() {
     unidade,
     cre,
   ]) {
-    // biome-ignore lint/performance/noAwaitInLoops: a ordem entre as tabelas é o ponto
     await db.delete(tabela);
   }
 }
@@ -310,7 +309,6 @@ async function criarUsuarios(unidadesDemo: string[]) {
   ];
 
   for (const conta of contas) {
-    // biome-ignore lint/performance/noAwaitInLoops: o Better Auth cria um usuário por vez
     await auth.api.signUpEmail({
       body: { email: conta.email, name: conta.nome, password: 'filaviva2026' },
     });
@@ -404,7 +402,6 @@ async function main() {
   }
 
   for (let i = 0; i < inscricoes.length; i += 500) {
-    // biome-ignore lint/performance/noAwaitInLoops: lote a lote, para não sobrecarregar o Neon
     await db.insert(inscricao).values(inscricoes.slice(i, i + 500));
   }
   for (let i = 0; i < opcoesInsert.length; i += 500) {
@@ -414,7 +411,6 @@ async function main() {
       .onConflictDoNothing();
   }
   for (let i = 0; i < contatos.length; i += 500) {
-    // biome-ignore lint/performance/noAwaitInLoops: idem
     await db.insert(contato).values(contatos.slice(i, i + 500));
   }
 

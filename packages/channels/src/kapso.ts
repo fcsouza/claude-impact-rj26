@@ -16,16 +16,19 @@ export function kapso(): Channel {
   return {
     nome: 'whatsapp',
     parseWebhook(corpo: unknown): AtualizacaoTentativa[] {
-      const evento = corpo as {
-        entry?: {
-          changes?: {
-            value?: {
-              statuses?: { id: string; status: string }[];
-              messages?: { from: string; text?: { body: string }; context?: { id: string } }[];
-            };
-          }[];
-        }[];
-      };
+      const evento = corpo as
+        | {
+            entry?: {
+              changes?: {
+                value?: {
+                  statuses?: { id: string; status: string }[];
+                  messages?: { from: string; text?: { body: string }; context?: { id: string } }[];
+                };
+              }[];
+            }[];
+          }
+        | null
+        | undefined;
 
       const saida: AtualizacaoTentativa[] = [];
       for (const entrada of evento?.entry ?? []) {

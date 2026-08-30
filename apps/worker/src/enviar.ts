@@ -9,6 +9,20 @@ import { eq } from 'drizzle-orm';
  * se ela já existe, o job sai sem mandar nada de novo. Falha transitória grava linha
  * própria e deixa o BullMQ repetir com backoff; falha definitiva ocupa a chave do dia (RNF2).
  */
+/** WhatsApp cai no telefone quando não há número dedicado, e vice-versa. */
+function escolherDestino(
+  canal: JobTentativa['canal'],
+  contato: { telefone: string | null; whatsapp: string | null; email: string | null } | null
+): string | null {
+  if (canal === 'email') {
+    return contato?.email ?? null;
+  }
+  if (canal === 'whatsapp') {
+    return contato?.whatsapp ?? contato?.telefone ?? null;
+  }
+  return contato?.telefone ?? contato?.whatsapp ?? null;
+}
+
 function montarTexto(
   canal: JobTentativa['canal'],
   dados: Parameters<typeof textoWhatsapp>[0],
@@ -62,12 +76,7 @@ export async function executarTentativa(job: JobTentativa, numeroDaTentativa = 1
   }
 
   const contato = await contatoVigente(db, contextoLinha.inscricaoId);
-  const destino =
-    job.canal === 'email'
-      ? contato?.email
-      : job.canal === 'whatsapp'
-        ? (contato?.whatsapp ?? contato?.telefone)
-        : (contato?.telefone ?? contato?.whatsapp);
+  const destino = escolherDestino(job.canal, contato);
 
   const dados = {
     endereco: contextoLinha.bairro ?? 'consulte a secretaria da unidade',

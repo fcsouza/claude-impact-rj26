@@ -45,7 +45,6 @@ export const webhookRotas = new Elysia({ prefix: '/api/webhooks' }).post(
       }
 
       if (atualizacao.status) {
-        // biome-ignore lint/performance/noAwaitInLoops: idem
         await db
           .update(tentativa)
           .set({ status: atualizacao.status })
@@ -53,7 +52,6 @@ export const webhookRotas = new Elysia({ prefix: '/api/webhooks' }).post(
       }
 
       if (atualizacao.inbound?.texto) {
-        // biome-ignore lint/performance/noAwaitInLoops: idem
         const registrada = await registrarInbound({
           canal: canal.nome,
           convocacaoId: alvo.convocacaoId,

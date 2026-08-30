@@ -14,12 +14,15 @@ export function contele(): Channel {
         status?: string;
         message?: string;
         from?: string;
-      };
+      } | null;
       if (!c) {
         return [];
       }
-      const status =
-        c.status === 'delivered' ? 'entregue' : c.status === 'failed' ? 'falhou' : 'enviado';
+      const porStatus: Record<string, AtualizacaoTentativa['status']> = {
+        delivered: 'entregue',
+        failed: 'falhou',
+      };
+      const status = (c.status ? porStatus[c.status] : undefined) ?? 'enviado';
       return [
         {
           inbound: c.message ? { remetente: c.from, texto: c.message } : undefined,

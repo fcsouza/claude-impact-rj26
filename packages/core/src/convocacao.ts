@@ -141,6 +141,7 @@ export async function agendarCadencia(convocacaoId: string, inicio: Date, prazoF
         ? inicio
         : proximoDiaUtil(new Date(inicio.getTime() + passo.dia * 86_400_000));
     for (const canal of passo.canais) {
+      // biome-ignore lint/performance/noAwaitInLoops: a fila aceita um job por vez, em ordem
       await tentativas.add(
         `${canal}-d${passo.dia}`,
         { canal, convocacaoId, dia: passo.dia },
@@ -200,6 +201,7 @@ export async function confirmar(
     );
 
   for (const irma of irmas) {
+    // biome-ignore lint/performance/noAwaitInLoops: cada cancelamento grava sua própria auditoria
     await transicionar(db, {
       autorId: args.autorId,
       motivo: 'confirmado_em_outra_opcao',

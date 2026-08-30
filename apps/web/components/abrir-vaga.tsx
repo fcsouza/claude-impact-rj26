@@ -18,6 +18,12 @@ export function AbrirVaga({
   const [aviso, setAviso] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
 
+  const abrir = () => setAberto(true);
+  const fechar = () => setAberto(false);
+  const mudarTurno = (e: React.ChangeEvent<HTMLSelectElement>) => setTurno(e.target.value);
+  const mudarGrupamento = (e: React.ChangeEvent<HTMLSelectElement>) =>
+    setGrupamento(e.target.value);
+
   function convocar() {
     setAviso(null);
     iniciar(async () => {
@@ -39,7 +45,7 @@ export function AbrirVaga({
 
   if (!aberto) {
     return (
-      <button className="botao" onClick={() => setAberto(true)} type="button">
+      <button className="botao" onClick={abrir} type="button">
         Abrir vaga
       </button>
     );
@@ -51,7 +57,7 @@ export function AbrirVaga({
         <h2>Abrir vaga</h2>
         <button
           className="botao botao-secundario"
-          onClick={() => setAberto(false)}
+          onClick={fechar}
           style={{ padding: '4px 10px' }}
           type="button"
         >
@@ -67,18 +73,14 @@ export function AbrirVaga({
       <div className="linha-campos">
         <div className="campo">
           <label htmlFor="turno-vaga">Turno</label>
-          <select id="turno-vaga" onChange={(e) => setTurno(e.target.value)} value={turno}>
+          <select id="turno-vaga" onChange={mudarTurno} value={turno}>
             <option value="Integral">Integral</option>
             <option value="Parcial">Parcial</option>
           </select>
         </div>
         <div className="campo">
           <label htmlFor="grupamento-vaga">Grupamento</label>
-          <select
-            id="grupamento-vaga"
-            onChange={(e) => setGrupamento(e.target.value)}
-            value={grupamento}
-          >
+          <select id="grupamento-vaga" onChange={mudarGrupamento} value={grupamento}>
             {grupamentos.map((g) => (
               <option key={g} value={g}>
                 {g}
