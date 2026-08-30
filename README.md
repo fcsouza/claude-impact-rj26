@@ -60,6 +60,23 @@ docker compose up --build
 Sobe Redis, API, worker e front. `--profile local-db` acrescenta um Postgres local se você
 não usar Neon.
 
+## Staging
+
+O ambiente vive no Dokploy, em `https://filaviva.pulsolab.com.br`.
+
+O caminho é o mesmo dos outros projetos da casa: o GitHub Actions constrói as
+três imagens a cada push na `main` e publica em `ghcr.io/fcsouza/claude-impact-rj26`;
+em seguida chama `compose.deploy` no Dokploy, que puxa as imagens e sobe o
+`docker-compose-production.yml`. O banco continua no Neon; o Redis sobe junto do
+compose.
+
+Só o front recebe domínio. A API fica na rede interna, alcançada pelo Next em
+`http://api:3333` — quando os webhooks dos provedores entrarem, ela ganha um
+domínio próprio e a rede `dokploy-network`.
+
+Segredos do Actions: `DOKPLOY_URL`, `DOKPLOY_API_KEY` e `DOKPLOY_COMPOSE_ID`.
+As variáveis da aplicação ficam no próprio compose, no painel do Dokploy.
+
 ## Arquitetura
 
 ```
