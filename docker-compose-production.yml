@@ -41,7 +41,8 @@ services:
       EMAIL_FROM: ${EMAIL_FROM:-fila-viva@pulsolab.com.br}
     depends_on:
       redis: { condition: service_healthy }
-    networks: [fila-viva]
+    # Na dokploy-network para o Traefik alcançar quando houver domínio de webhook.
+    networks: [fila-viva, dokploy-network]
 
   worker:
     image: ghcr.io/fcsouza/claude-impact-rj26/worker:${TAG_IMAGEM:-latest}
@@ -75,7 +76,8 @@ services:
       API_URL: http://api:3333
       BETTER_AUTH_URL: ${BETTER_AUTH_URL}
     depends_on: [api]
-    networks: [fila-viva]
+    # O Traefik só enxerga quem está na dokploy-network; o front tem domínio.
+    networks: [fila-viva, dokploy-network]
 
 volumes:
   redis-data:
@@ -83,3 +85,5 @@ volumes:
 networks:
   fila-viva:
     driver: bridge
+  dokploy-network:
+    external: true
