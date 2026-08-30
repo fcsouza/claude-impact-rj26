@@ -1,5 +1,8 @@
 # Fila Viva
 
+**Equipe 26** — Laís Rodrigues, Fabricio Souza, Mariana Bastos, Danielle e Vanessa Rocha.
+Claude Impact Lab Rio 2026.
+
 CRM de fila e convocação de creche para a Secretaria Municipal de Educação do Rio.
 Construído sobre as bases públicas do [CIT-SME-RJ/dadoscreche](https://github.com/CIT-SME-RJ/dadoscreche),
 processo 195/2025.
