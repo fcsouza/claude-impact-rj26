@@ -107,6 +107,21 @@ export async function executarTentativa(job: JobTentativa, numeroDaTentativa = 1
   const email = job.canal === 'email' ? textoEmail(dados) : null;
   const texto = montarTexto(job.canal, dados, email);
 
+  // A linha entra antes do envio: se o worker cair no meio, a chave do dia já está
+  // tomada e o retry não manda a mesma mensagem duas vezes para a família.
+  const idTentativa = id('tent');
+  await db.insert(tentativa).values({
+    canal: job.canal,
+    chaveIdempotencia: chave,
+    convocacaoId: job.convocacaoId,
+    destino,
+    dia: job.dia,
+    id: idTentativa,
+    origem: 'auto',
+    resultado: `em envio por ${canal.provedor}`,
+    status: 'agendada',
+  });
+
   const resultado = await canal.send({
     assunto: email?.assunto,
     destino,
@@ -114,21 +129,18 @@ export async function executarTentativa(job: JobTentativa, numeroDaTentativa = 1
     texto,
   });
 
-  await db.insert(tentativa).values({
-    canal: job.canal,
-    // Só o envio que deu certo ocupa a chave do dia; a falha fica numerada e libera o retry.
-    chaveIdempotencia: resultado.ok ? chave : `${chave}:falha:${numeroDaTentativa}`,
-    convocacaoId: job.convocacaoId,
-    destino,
-    dia: job.dia,
-    executadaEm: new Date(),
-    id: id('tent'),
-    origem: 'auto',
-    payloadJson: resultado.payload ?? null,
-    providerId: resultado.providerId ?? null,
-    resultado: resultado.erro ?? `enviado por ${canal.provedor}`,
-    status: resultado.status,
-  });
+  await db
+    .update(tentativa)
+    .set({
+      // A falha libera a chave do dia para o retry; o sucesso a mantém tomada.
+      chaveIdempotencia: resultado.ok ? chave : `${chave}:falha:${numeroDaTentativa}`,
+      executadaEm: new Date(),
+      payloadJson: resultado.payload ?? null,
+      providerId: resultado.providerId ?? null,
+      resultado: resultado.erro ?? `enviado por ${canal.provedor}`,
+      status: resultado.status,
+    })
+    .where(eq(tentativa.id, idTentativa));
 
   if (!resultado.ok) {
     throw new Error(`envio falhou em ${canal.provedor}: ${resultado.erro}`);

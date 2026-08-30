@@ -30,7 +30,14 @@ export class SemCandidato extends Error {
   }
 }
 
-const SITUACOES_QUE_BLOQUEIAM = ['Confirmado', 'Selecionado', 'Ativo'] as const;
+// 'Selecionado da lista' vem do sistema de origem e vale como seleção: quem está
+// nesse estado não pode ser chamado de novo em outra unidade.
+const SITUACOES_QUE_BLOQUEIAM = [
+  'Confirmado',
+  'Selecionado',
+  'Selecionado da lista',
+  'Ativo',
+] as const;
 
 /**
  * Próxima criança da fila: maior pontuação, empate pela inscrição mais antiga.
@@ -213,7 +220,7 @@ export async function confirmar(
   await db
     .update(convocacao)
     .set({ encerradaEm: new Date(), status: 'confirmada' })
-    .where(eq(convocacao.id, args.convocacaoId));
+    .where(and(eq(convocacao.id, args.convocacaoId), eq(convocacao.status, 'aberta')));
 
   return { opcoesCanceladas: irmas.length };
 }
@@ -243,10 +250,17 @@ export async function expirar(db: Database, convocacaoId: string) {
     para: 'Cancelado pelo sistema',
   });
 
-  await db
+  // Condicional: se a família confirmou entre a leitura e aqui, o UPDATE não pega
+  // e a expiração desiste em vez de sobrescrever a confirmação.
+  const encerradas = await db
     .update(convocacao)
     .set({ encerradaEm: new Date(), status: 'expirada' })
-    .where(eq(convocacao.id, convocacaoId));
+    .where(and(eq(convocacao.id, convocacaoId), eq(convocacao.status, 'aberta')))
+    .returning({ id: convocacao.id });
+
+  if (encerradas.length === 0) {
+    return { expirada: false as const, motivo: 'a convocação mudou de estado antes da expiração' };
+  }
 
   return {
     expirada: true as const,

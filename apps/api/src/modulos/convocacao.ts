@@ -10,6 +10,7 @@ import { convocacao, db, id, opcao, tentativa } from '@fila-viva/db';
 import { desc, eq } from 'drizzle-orm';
 import { Elysia, status } from 'elysia';
 import { z } from 'zod';
+import { exigirAcessoAConvocacao } from '../acesso.ts';
 import { contexto, exigirAutor, exigirUnidade } from '../contexto.ts';
 import { PROBLEMAS } from '../erros.ts';
 
@@ -71,7 +72,11 @@ export const convocacaoRotas = new Elysia({ prefix: '/api/convocacoes' })
   )
   .get(
     '/:convocacaoId',
-    async ({ params }) => {
+    async ({ params, autor }) => {
+      const acesso = await exigirAcessoAConvocacao(exigirAutor(autor), params.convocacaoId);
+      if (acesso.erro === 'negado') {
+        return acesso.resposta;
+      }
       const conv = await db.query.convocacao.findFirst({
         where: eq(convocacao.id, params.convocacaoId),
       });
@@ -89,18 +94,32 @@ export const convocacaoRotas = new Elysia({ prefix: '/api/convocacoes' })
   )
   .post(
     '/:convocacaoId/confirmar',
-    async ({ params, autor }) =>
-      await confirmar(db, {
+    async ({ params, autor }) => {
+      const acesso = await exigirAcessoAConvocacao(exigirAutor(autor), params.convocacaoId);
+      if (acesso.erro === 'negado') {
+        return acesso.resposta;
+      }
+      if (acesso.erro === 'nao-encontrado') {
+        return status(404, PROBLEMAS.naoEncontrado('convocação não encontrada'));
+      }
+
+      return await confirmar(db, {
         autorId: exigirAutor(autor).id,
         convocacaoId: params.convocacaoId,
         motivo: 'manual',
-      }),
+      });
+    },
     { params: z.object({ convocacaoId: z.string() }), sessao: true }
   )
   /** Desistência ou não localizado: exige justificativa escrita. */
   .post(
     '/:convocacaoId/cancelar',
     async ({ params, body, autor }) => {
+      const acesso = await exigirAcessoAConvocacao(exigirAutor(autor), params.convocacaoId);
+      if (acesso.erro === 'negado') {
+        return acesso.resposta;
+      }
+
       const conv = await db.query.convocacao.findFirst({
         where: eq(convocacao.id, params.convocacaoId),
       });
@@ -136,6 +155,11 @@ export const convocacaoRotas = new Elysia({ prefix: '/api/convocacoes' })
   .post(
     '/:convocacaoId/estender',
     async ({ params, body, autor }) => {
+      const acesso = await exigirAcessoAConvocacao(exigirAutor(autor), params.convocacaoId);
+      if (acesso.erro === 'negado') {
+        return acesso.resposta;
+      }
+
       try {
         return await estenderPrazo(db, {
           autorId: exigirAutor(autor).id,
@@ -156,6 +180,14 @@ export const convocacaoRotas = new Elysia({ prefix: '/api/convocacoes' })
   .post(
     '/:convocacaoId/tentativa-manual',
     async ({ params, body, autor }) => {
+      const acesso = await exigirAcessoAConvocacao(exigirAutor(autor), params.convocacaoId);
+      if (acesso.erro === 'negado') {
+        return acesso.resposta;
+      }
+      if (acesso.erro === 'nao-encontrado') {
+        return status(404, PROBLEMAS.naoEncontrado('convocação não encontrada'));
+      }
+
       const agora = new Date();
       const [criada] = await db
         .insert(tentativa)

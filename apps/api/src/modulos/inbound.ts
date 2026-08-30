@@ -1,8 +1,9 @@
 import { confirmar, estenderPrazo, transicionar } from '@fila-viva/core';
 import { convocacao, db, inscricao, mensagemInbound, opcao } from '@fila-viva/db';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { Elysia, status } from 'elysia';
 import { z } from 'zod';
+import { exigirAcessoAConvocacao, exigirAcessoAoInbound } from '../acesso.ts';
 import { contexto, exigirAutor } from '../contexto.ts';
 import { PROBLEMAS } from '../erros.ts';
 import { registrarInbound } from './webhooks.ts';
@@ -15,32 +16,50 @@ export const inboundRotas = new Elysia({ prefix: '/api/inbound' })
   .use(contexto)
   .get(
     '/pendentes',
-    async () =>
-      await db
+    async ({ autor }) => {
+      const quem = exigirAutor(autor);
+      const condicoes = [eq(mensagemInbound.acaoAplicada, false)];
+      // Servidor de unidade só vê a própria fila; a CRE vê o polo inteiro.
+      if (quem.papel === 'unidade' && quem.unidadeId) {
+        condicoes.push(eq(opcao.unidadeId, quem.unidadeId));
+      }
+
+      return await db
         .select({
           inbound: mensagemInbound,
           inscricaoId: inscricao.id,
           nome: inscricao.nomeFicticio,
           opcaoId: opcao.id,
+          unidadeId: opcao.unidadeId,
         })
         .from(mensagemInbound)
         .innerJoin(convocacao, eq(mensagemInbound.convocacaoId, convocacao.id))
         .innerJoin(opcao, eq(convocacao.opcaoId, opcao.id))
         .innerJoin(inscricao, eq(opcao.inscricaoId, inscricao.id))
-        .where(eq(mensagemInbound.acaoAplicada, false))
-        .orderBy(desc(mensagemInbound.recebidaEm)),
+        .where(and(...condicoes))
+        .orderBy(desc(mensagemInbound.recebidaEm));
+    },
     { sessao: true }
   )
   /** Entrada manual de resposta — é o que a demo usa quando o canal está em mock. */
   .post(
     '/simular',
-    async ({ body }) =>
-      await registrarInbound({
+    async ({ body, autor }) => {
+      const acesso = await exigirAcessoAConvocacao(exigirAutor(autor), body.convocacaoId);
+      if (acesso.erro === 'negado') {
+        return acesso.resposta;
+      }
+      if (acesso.erro === 'nao-encontrado') {
+        return status(404, PROBLEMAS.naoEncontrado('convocação não encontrada'));
+      }
+
+      return await registrarInbound({
         canal: body.canal ?? 'whatsapp',
         convocacaoId: body.convocacaoId,
         remetente: body.remetente,
         texto: body.texto,
-      }),
+      });
+    },
     {
       body: z.object({
         canal: z.enum(['whatsapp', 'sms', 'email']).optional(),
@@ -54,6 +73,11 @@ export const inboundRotas = new Elysia({ prefix: '/api/inbound' })
   .post(
     '/:inboundId/aplicar',
     async ({ params, body, autor }) => {
+      const acesso = await exigirAcessoAoInbound(exigirAutor(autor), params.inboundId);
+      if (acesso.erro === 'negado') {
+        return acesso.resposta;
+      }
+
       const registro = await db.query.mensagemInbound.findFirst({
         where: eq(mensagemInbound.id, params.inboundId),
       });

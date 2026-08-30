@@ -117,25 +117,29 @@ export async function transicionar(db: Database, args: ArgsTransicao) {
   }
 
   const agora = new Date();
-  const [nova] = await db
-    .update(opcao)
-    .set({ situacao: args.para, situacaoAtualizadaEm: agora })
-    .where(eq(opcao.id, args.opcaoId))
-    .returning();
 
-  await db.insert(eventoAuditoria).values({
-    acao: `situacao:${args.motivo}`,
-    antesJson: { situacao: atual.situacao },
-    autorId: args.autorId ?? null,
-    criadoEm: agora,
-    depoisJson: { situacao: args.para },
-    entidade: 'opcao',
-    entidadeId: args.opcaoId,
-    id: id('aud'),
-    motivo: args.justificativa ?? null,
+  // Situação e auditoria numa transação só: registro sem rastro é pior que erro.
+  return await db.transaction(async (tx) => {
+    const [atualizada] = await tx
+      .update(opcao)
+      .set({ situacao: args.para, situacaoAtualizadaEm: agora })
+      .where(eq(opcao.id, args.opcaoId))
+      .returning();
+
+    await tx.insert(eventoAuditoria).values({
+      acao: `situacao:${args.motivo}`,
+      antesJson: { situacao: atual.situacao },
+      autorId: args.autorId ?? null,
+      criadoEm: agora,
+      depoisJson: { situacao: args.para },
+      entidade: 'opcao',
+      entidadeId: args.opcaoId,
+      id: id('aud'),
+      motivo: args.justificativa ?? null,
+    });
+
+    return atualizada;
   });
-
-  return nova;
 }
 
 /** Auditoria de qualquer entidade que não seja transição de situação. */

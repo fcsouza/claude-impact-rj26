@@ -1,0 +1,1 @@
+CREATE INDEX "convocacao_opcao_idx" ON "convocacao" USING btree ("opcao_id");

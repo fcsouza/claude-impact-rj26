@@ -27,7 +27,7 @@ export async function cancelarConvocacao(entrada: {
   justificativa: string;
 }) {
   const resultado = await api(
-    `/convocacoes/${entrada.convocacaoId}/cancelar`,
+    `/api/convocacoes/${entrada.convocacaoId}/cancelar`,
     json({ justificativa: entrada.justificativa, motivo: entrada.motivo })
   );
   revalidatePath(`/ficha/${entrada.inscricaoId}`);
@@ -40,7 +40,7 @@ export async function estenderPrazo(entrada: {
   justificativa: string;
 }) {
   const resultado = await api(
-    `/convocacoes/${entrada.convocacaoId}/estender`,
+    `/api/convocacoes/${entrada.convocacaoId}/estender`,
     json({ justificativa: entrada.justificativa })
   );
   revalidatePath(`/ficha/${entrada.inscricaoId}`);
@@ -55,7 +55,7 @@ export async function registrarTentativaManual(entrada: {
   resultado: string;
 }) {
   const saida = await api(
-    `/convocacoes/${entrada.convocacaoId}/tentativa-manual`,
+    `/api/convocacoes/${entrada.convocacaoId}/tentativa-manual`,
     json({ canal: entrada.canal, resultado: entrada.resultado, status: entrada.status })
   );
   revalidatePath(`/ficha/${entrada.inscricaoId}`);
@@ -95,7 +95,7 @@ export async function mudarSituacao(entrada: {
   justificativa: string;
 }) {
   const saida = await api(
-    `/convocacoes/opcoes/${entrada.opcaoId}/situacao`,
+    `/api/convocacoes/opcoes/${entrada.opcaoId}/situacao`,
     json({ justificativa: entrada.justificativa, para: entrada.para })
   );
   revalidatePath(`/ficha/${entrada.inscricaoId}`);
@@ -122,7 +122,7 @@ export async function aplicarSugestao(entrada: {
   justificativa?: string;
 }) {
   const saida = await api(
-    `/inbound/${entrada.inboundId}/aplicar`,
+    `/api/inbound/${entrada.inboundId}/aplicar`,
     json({ acao: entrada.acao, justificativa: entrada.justificativa })
   );
   revalidatePath(`/ficha/${entrada.inscricaoId}`);

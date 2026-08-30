@@ -16,6 +16,7 @@ export function AbrirVaga({
   const [turno, setTurno] = useState('Integral');
   const [grupamento, setGrupamento] = useState(grupamentos[0] ?? 'Berçário');
   const [aviso, setAviso] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
 
   const abrir = () => setAberto(true);
@@ -26,6 +27,7 @@ export function AbrirVaga({
 
   function convocar() {
     setAviso(null);
+    setErro(null);
     iniciar(async () => {
       try {
         const resultado = await abrirVaga({ grupamento, turno, unidadeId });
@@ -33,9 +35,9 @@ export function AbrirVaga({
           `${resultado.candidato.nome} foi convocada. Prazo de 3 dias úteis, tentativa D0 por WhatsApp.`
         );
         router.refresh();
-      } catch (erro) {
-        setAviso(
-          erro instanceof Error && erro.message.includes('nenhuma criança')
+      } catch (falha) {
+        setErro(
+          falha instanceof Error && falha.message.includes('nenhuma criança')
             ? 'Não há criança elegível nesse turno e grupamento.'
             : 'Não foi possível abrir a vaga agora.'
         );
@@ -93,6 +95,11 @@ export function AbrirVaga({
       {aviso ? (
         <p className="aviso" style={{ marginTop: 'var(--fv-space-3)' }}>
           {aviso}
+        </p>
+      ) : null}
+      {erro ? (
+        <p className="erro" style={{ marginTop: 'var(--fv-space-3)' }}>
+          {erro}
         </p>
       ) : null}
 

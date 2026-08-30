@@ -305,7 +305,11 @@ export const convocacao = pgTable(
     status: statusConvocacaoEnum().default('aberta').notNull(),
     vagaId: text().references(() => vaga.id),
   },
-  (t) => [index('convocacao_status_idx').on(t.status, t.prazoFim)]
+  (t) => [
+    index('convocacao_status_idx').on(t.status, t.prazoFim),
+    // A fila junta convocação por opção a cada linha da tela.
+    index('convocacao_opcao_idx').on(t.opcaoId),
+  ]
 );
 
 export const tentativa = pgTable(

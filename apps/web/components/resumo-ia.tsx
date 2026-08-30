@@ -4,13 +4,21 @@ import { useState, useTransition } from 'react';
 
 export function ResumoIA({ inscricaoId }: { inscricaoId: string }) {
   const [resumo, setResumo] = useState<{ texto: string; origem: string } | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
 
   function gerar() {
     iniciar(async () => {
-      const resposta = await fetch(`/api/ficha/${inscricaoId}/resumo`);
-      if (resposta.ok) {
+      setErro(null);
+      try {
+        const resposta = await fetch(`/api/ficha/${inscricaoId}/resumo`);
+        if (!resposta.ok) {
+          setErro('Não foi possível gerar o resumo agora.');
+          return;
+        }
         setResumo((await resposta.json()) as { texto: string; origem: string });
+      } catch {
+        setErro('Não foi possível gerar o resumo agora.');
       }
     });
   }
@@ -27,6 +35,11 @@ export function ResumoIA({ inscricaoId }: { inscricaoId: string }) {
         {resumo?.texto ??
           'Clique em gerar para ver a situação da criança e o próximo passo em duas frases.'}
       </p>
+      {erro ? (
+        <p className="erro" style={{ marginTop: 6 }}>
+          {erro}
+        </p>
+      ) : null}
       {resumo ? (
         <p className="cod" style={{ marginTop: 6 }}>
           {resumo.origem === 'claude'
