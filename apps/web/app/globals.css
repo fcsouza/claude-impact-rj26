@@ -61,11 +61,25 @@
   gap: var(--fv-space-1);
   height: 100vh;
   padding: var(--fv-space-6) var(--fv-space-3);
+  overflow: hidden;
   color: var(--fv-text-on-ink);
   background: var(--fv-ink);
 }
+/* A marca fica no alto e o usuário no rodapé; o meio é que rola. Sem isto a
+   lista de unidades empurrava o botão de sair para fora da tela. */
+.sidebar-nav {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--fv-space-1);
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-color: var(--fv-ink-border) transparent;
+  scrollbar-width: thin;
+}
 .brand {
   display: flex;
+  flex-shrink: 0;
   flex-direction: column;
   gap: 2px;
   padding: 0 var(--fv-space-3) var(--fv-space-4);
@@ -121,10 +135,10 @@
 }
 .usuario {
   display: flex;
+  flex-shrink: 0;
   gap: var(--fv-space-2);
   align-items: center;
   padding: var(--fv-space-3);
-  margin-top: auto;
   border-top: 1px solid var(--fv-ink-border);
 }
 .avatar {
@@ -170,7 +184,12 @@
 
 /* --- cartões e tabela ------------------------------------------------ */
 .cartao {
+  /* Tabela larga rola dentro do próprio cartão em vez de esticar a página.
+     A dica do "i" se posiciona pela janela, então não é cortada por isto. */
   padding: var(--fv-space-4);
+  /* Tabela larga rola dentro do próprio cartão em vez de esticar a página.
+     A dica do "i" se posiciona pela janela, então não é cortada por isto. */
+  overflow-x: auto;
   background: var(--fv-surface);
   border: 1px solid var(--fv-border);
   border-radius: var(--fv-radius-lg);
@@ -600,12 +619,25 @@ label {
   .sidebar {
     position: static;
     height: auto;
+    overflow: visible;
+  }
+  .sidebar-nav {
+    flex: none;
+    overflow-y: visible;
   }
   .conteudo {
     padding: var(--fv-space-4);
   }
   .grid-ficha {
     grid-template-columns: 1fr;
+  }
+  .grid-ficha > * {
+    min-width: 0;
+  }
+  /* Em tela estreita o evento empilha: hora, canal e texto um sob o outro. */
+  .evento {
+    grid-template-columns: 1fr;
+    gap: 2px;
   }
 }
 
