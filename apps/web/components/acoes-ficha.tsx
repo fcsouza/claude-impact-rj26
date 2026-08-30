@@ -112,12 +112,14 @@ export function AcoesFicha({
         <span className="cod">toda mutação vira evento de auditoria</span>
       </div>
 
-      <div className="filtros" style={{ marginBottom: 'var(--fv-space-3)' }}>
+      <div className="abas" role="tablist">
         {abas.map((a) => (
           <button
-            className={`botao ${aba === a.chave ? '' : 'botao-secundario'}`}
+            aria-selected={aba === a.chave}
+            className="aba"
             key={a.chave}
             onClick={() => setAba(a.chave)}
+            role="tab"
             type="button"
           >
             {a.rotulo}

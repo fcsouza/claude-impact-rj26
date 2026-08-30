@@ -118,10 +118,12 @@ export default async function FichaPagina({
         <div>
           <h1>{ficha.cadastro.nomeFicticio}</h1>
           <p className="subtitulo">
-            <span className={classeSituacao(principal?.situacao ?? '')}>
-              {rotuloSituacao(principal?.situacao ?? '')}
-            </span>
-            <Info texto={dicaSituacao(principal?.situacao ?? '')} />{' '}
+            <span className="termo">
+              <span className={classeSituacao(principal?.situacao ?? '')}>
+                {rotuloSituacao(principal?.situacao ?? '')}
+              </span>
+              <Info texto={dicaSituacao(principal?.situacao ?? '')} />
+            </span>{' '}
             <span className="mono">aluno_anon {ficha.cadastro.alunoAnon}</span> · nasc.{' '}
             {ficha.cadastro.nascimentoAnomes} · {principal?.grupamento} · {principal?.turno} ·{' '}
             {principal?.ordem}ª opção
@@ -264,7 +266,7 @@ export default async function FichaPagina({
                   <span className="mono">{o.ordem}ª</span> {o.unidade}
                   <div className="cod">{o.bairroUnidade ?? ''}</div>
                 </span>
-                <span>
+                <span className="termo">
                   <span className={classeSituacao(o.situacao)}>{rotuloSituacao(o.situacao)}</span>
                   <Info texto={dicaSituacao(o.situacao)} />
                 </span>

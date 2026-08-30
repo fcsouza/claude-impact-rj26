@@ -37,7 +37,7 @@ export default async function Auditoria() {
       </p>
 
       <div className="cartao">
-        <div style={{ overflowX: 'auto' }}>
+        <div className="tabela-rolagem">
           <table>
             <thead>
               <tr>

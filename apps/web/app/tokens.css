@@ -1,18 +1,22 @@
 /* Fila Viva — CRM de convocação de creche · Prefeitura do Rio / SME
-   Marca alinhada ao matricula.rio: azul institucional #034C7F, cyan #00BFF2,
-   tinta #181818, botão com raio 5px e Cera Pro na tipografia.
+   Cor tirada de prefeitura.rio: azul institucional #004A80 (cabeçalho, menu e
+   rodapé do site), azul médio #008EB7 (faixa do topo), ciano #00C1CF (botões de
+   ação) e azul de link #1863DC. Cinzas #333/#707070 no texto e #ECECEC no fundo.
+   O ciano tem 2:1 contra o branco — serve de acento, nunca de texto ou botão.
+   A cor de situação não muda: ela codifica a máquina de estados, não a marca.
    Cera Pro é licenciada: vem primeiro na pilha e cai em Figtree, que tem o mesmo
    desenho geométrico e é livre. Número conferível continua em IBM Plex Mono. */
 :root {
-  /* superfícies */
-  --fv-ink: #12283c;
-  --fv-ink-hover: #1c3852;
-  --fv-ink-border: #2a4761;
-  --fv-paper: #f4f5f6;
+  /* superfícies — a barra lateral é a faixa institucional do site */
+  --fv-ink: #00335a;
+  --fv-ink-hover: #004a80;
+  --fv-ink-border: #0d5b96;
+  --fv-paper: #ececec;
   --fv-surface: #ffffff;
-  --fv-surface-sunken: #f8f9fa;
-  --fv-row-hover: #f2f7fb;
+  --fv-surface-sunken: #f7f8f9;
+  --fv-row-hover: #f0f6fa;
   --fv-row-alert: #fffbf2;
+  --fv-row-alert-hover: #fdf4e3;
 
   /* bordas */
   --fv-border: #e4e7ea;
@@ -22,22 +26,23 @@
   --fv-divider-soft: #f4f5f7;
 
   /* texto */
-  --fv-text: #181818;
-  --fv-text-2: #424242;
+  --fv-text: #333333;
+  --fv-text-2: #515151;
   --fv-text-3: #707070;
   --fv-text-disabled: #a0a9b2;
   --fv-text-on-ink: #edf2f6;
   --fv-text-on-ink-2: #b6c6d3;
   --fv-text-on-ink-3: #7f94a6;
 
-  /* marca — matricula.rio */
-  --fv-primary: #034c7f;
-  --fv-primary-hover: #023a61;
-  --fv-primary-soft: #e4eef6;
-  --fv-primary-soft-border: #c3d8e9;
-  --fv-cyan: #00bff2;
-  --fv-cyan-soft: #e1f7fe;
-  --fv-civic-yellow: #f2c14e; /* só na assinatura institucional em tipografia */
+  /* marca — prefeitura.rio */
+  --fv-primary: #004a80;
+  --fv-primary-hover: #003a64;
+  --fv-primary-soft: #e6eff6;
+  --fv-primary-soft-border: #c2d8e8;
+  --fv-blue-mid: #008eb7; /* faixa secundária do site */
+  --fv-cyan: #00c1cf; /* acento: filete, marca na barra lateral. Nunca texto. */
+  --fv-cyan-soft: #e0f7fa;
+  --fv-link: #1863dc; /* link em texto corrido: 5,4:1 no branco */
 
   /* semântica de situação */
   --fv-warn: #8a5a00;
@@ -84,6 +89,6 @@
   --fv-radius-md: 6px;
   --fv-radius-lg: 8px;
   --fv-radius-pill: 99px;
-  --fv-shadow-button: 0 1px 2px rgba(3, 76, 127, 0.18);
-  --fv-shadow-overlay: 0 8px 24px rgba(18, 40, 60, 0.16);
+  --fv-shadow-button: 0 1px 2px rgba(0, 74, 128, 0.18);
+  --fv-shadow-overlay: 0 10px 28px rgba(0, 51, 90, 0.2);
 }

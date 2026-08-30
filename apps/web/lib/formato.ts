@@ -60,12 +60,16 @@ export function prazo(prazoFim: string | Date | null) {
   }
   const dias = Math.ceil((new Date(prazoFim).getTime() - Date.now()) / 86_400_000);
   if (dias < 0) {
-    return { classe: 'prazo prazo-vencido', texto: `vencido há ${Math.abs(dias)}d` };
+    const vencidos = Math.abs(dias);
+    return {
+      classe: 'prazo prazo-vencido',
+      texto: vencidos === 1 ? 'vencido ontem' : `vencido há ${vencidos} dias`,
+    };
   }
   if (dias === 0) {
     return { classe: 'prazo prazo-hoje', texto: 'vence hoje' };
   }
-  return { classe: 'prazo prazo-ok', texto: `faltam ${dias}d` };
+  return { classe: 'prazo prazo-ok', texto: dias === 1 ? 'falta 1 dia' : `faltam ${dias} dias` };
 }
 
 /**

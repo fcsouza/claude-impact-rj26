@@ -1,5 +1,5 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { NavLink } from '@/components/navlink';
 import { SairBotao } from '@/components/sair-botao';
 import { api, sessaoAtual } from '@/lib/api';
 
@@ -45,10 +45,10 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
 
         <span className="navgrupo">Operação</span>
         {unidades.slice(0, LIMITE_LATERAL).map((u) => (
-          <Link className="navlink" href={`/fila/${u.escCodigo}`} key={u.escCodigo}>
+          <NavLink href={`/fila/${u.escCodigo}`} key={u.escCodigo}>
             <span>{u.nome.length > 22 ? `${u.nome.slice(0, 22)}…` : u.nome}</span>
             <span className="conta">{u.escCodigo}</span>
-          </Link>
+          </NavLink>
         ))}
 
         {unidades.length > LIMITE_LATERAL ? (
@@ -66,12 +66,12 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         {usuario.papel === 'cre' || usuario.papel === 'secretaria' ? (
           <>
             <span className="navgrupo">Coordenadoria</span>
-            <Link className="navlink" href="/painel">
+            <NavLink href="/painel">
               <span>Painel de gargalos</span>
-            </Link>
-            <Link className="navlink" href="/auditoria">
+            </NavLink>
+            <NavLink href="/auditoria">
               <span>Auditoria</span>
-            </Link>
+            </NavLink>
           </>
         ) : null}
 
@@ -85,9 +85,9 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         ) : null}
 
         <span className="navgrupo">Registro</span>
-        <Link className="navlink" href="/regua">
+        <NavLink href="/regua">
           <span>Régua de pontuação</span>
-        </Link>
+        </NavLink>
 
         <div className="usuario">
           <span className="avatar">{iniciais}</span>
