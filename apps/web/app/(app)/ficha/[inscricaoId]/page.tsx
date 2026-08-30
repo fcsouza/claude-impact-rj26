@@ -137,8 +137,10 @@ export default async function FichaPagina({
               {p.texto}
             </div>
             <div className="cod">
-              até {data(ficha.convocacaoAberta.prazoFim)} · {ficha.convocacaoAberta.extensoes}{' '}
-              extensão(ões)
+              até {data(ficha.convocacaoAberta.prazoFim)} ·{' '}
+              {ficha.convocacaoAberta.extensoes === 1
+                ? 'uma extensão concedida'
+                : 'sem extensão de prazo'}
             </div>
           </div>
         ) : null}
@@ -239,7 +241,9 @@ export default async function FichaPagina({
                     }}
                   >
                     <span style={{ font: 'var(--fv-text-body)' }}>{c.texto}</span>
-                    <span className="mono">{c.pontos}</span>
+                    <span className={c.pontos === 0 ? 'badge badge-neutro' : 'mono'}>
+                      {c.pontos === 0 ? 'desempate' : c.pontos}
+                    </span>
                   </div>
                 ))
               )}

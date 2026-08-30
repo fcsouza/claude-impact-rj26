@@ -16,8 +16,7 @@ type Badge =
   | { tipo: 'selecionado_ha'; dias: number }
   | { tipo: 'prazo_vencido'; dias: number }
   | { tipo: 'inconsistencia'; detalhe: string }
-  | { tipo: 'contato_desatualizado'; canais: string[] }
-  | { tipo: 'bairro_diferente'; bairroFamilia: string; bairroUnidade: string };
+  | { tipo: 'contato_desatualizado'; canais: string[] };
 
 interface Linha {
   alunoAnon: string;
@@ -91,14 +90,9 @@ const rotuloBadge = (b: Badge) => {
         dica: DICAS.contatoDesatualizado,
         texto: `contato desatualizado: ${b.canais.map((c) => ROTULO_CANAL[c] ?? c).join(', ')}`,
       };
-    case 'bairro_diferente':
-      return {
-        classe: 'badge badge-neutro',
-        dica: `Família em ${b.bairroFamilia}, unidade em ${b.bairroUnidade}.`,
-        texto: 'bairro diferente',
-      };
+    // Sinal que esta versão da tela não conhece: melhor nada do que uma etiqueta vazia.
     default:
-      return { classe: 'badge', dica: '', texto: '' };
+      return null;
   }
 };
 
@@ -324,12 +318,12 @@ export default async function Fila({
                     <td>
                       {linha.badges.map((b) => {
                         const r = rotuloBadge(b);
-                        return (
+                        return r ? (
                           <span className={r.classe} key={`${linha.opcaoId}-${b.tipo}`}>
                             {r.texto}
                             <Info texto={r.dica} />
                           </span>
-                        );
+                        ) : null;
                       })}
                     </td>
                     <td>
@@ -353,7 +347,10 @@ export default async function Fila({
           <p className="vazio">Nenhuma opção com esse filtro.</p>
         ) : (
           <p className="cod" style={{ marginTop: 'var(--fv-space-3)' }}>
-            {dados.linhas.length} opções · ordenado por pontuação, empate por data de inscrição
+            {dados.linhas.length < dados.kpis.fila + dados.kpis.convocados
+              ? `mostrando as ${dados.linhas.length} primeiras · use os filtros para chegar ao resto`
+              : `${dados.linhas.length} opções`}{' '}
+            · ordenado por pontuação, empate por data de inscrição
           </p>
         )}
       </div>

@@ -83,8 +83,12 @@ export const DICAS = {
     'A mensagem enviada por este canal não foi entregue. Atualize o contato da família antes da próxima tentativa.',
   convocados:
     'Alunos que receberam contato automático da escola para preenchimento da vaga, com prazo de 3 dias úteis para matrícula.',
+  diaDaRegua:
+    'Dia da cadência de contato desde a convocação: D0 é WhatsApp, D1 WhatsApp e SMS, D2 SMS e e-mail.',
   estadoDuplo:
     'Uma opção deste cadastro está "Selecionada" enquanto outra segue em "Lista de espera" — verificar antes de agir.',
+  leituraIa:
+    'Leitura da resposta feita por Claude, com o trecho que a sustenta. Nenhuma situação muda por conta dela — quem aplica é o servidor.',
   matriculados: 'Número de alunos que efetivaram a matrícula após a convocação.',
   pontuacao:
     'Soma dos pesos dos critérios socioeconômicos respondidos na inscrição, conforme a régua vigente daquele processo. Os pesos mudam a cada ano — não compare pontuações de processos diferentes diretamente.',
@@ -115,4 +119,64 @@ export function dicaSituacao(situacao: string): string {
     default:
       return situacao;
   }
+}
+
+/** Ação de auditoria em português. O banco grava `situacao:abrir_vaga`; a tela lê gente. */
+export function rotuloAcao(acao: string): string {
+  const mapa: Record<string, string> = {
+    abrir_vaga: 'Vaga aberta',
+    contato: 'Contato atualizado',
+    extensao_prazo: 'Prazo estendido',
+    nota: 'Nota registrada',
+    notificar_secretaria: 'Secretaria avisada',
+    'situacao:abrir_vaga': 'Criança convocada',
+    'situacao:confirmado_em_outra_opcao': 'Cancelada por matrícula em outra unidade',
+    'situacao:desistiu': 'Cancelada por desistência',
+    'situacao:manual': 'Situação mudada à mão',
+    'situacao:nao_localizado': 'Cancelada por falta de contato',
+    'situacao:prazo_vencido': 'Cancelada pelo prazo',
+    'situacao:resposta_sim': 'Confirmada pela família',
+  };
+  return mapa[acao] ?? acao.replace(/[:_]/g, ' ');
+}
+
+/** Entidade de auditoria em português. */
+export function rotuloEntidade(entidade: string): string {
+  const mapa: Record<string, string> = {
+    contato: 'contato',
+    convocacao: 'convocação',
+    inscricao: 'inscrição',
+    nota: 'nota',
+    opcao: 'opção na unidade',
+  };
+  return mapa[entidade] ?? entidade;
+}
+
+/** Leitura da IA sobre a resposta da família. */
+export function rotuloClassificacao(classificacao: string): string {
+  const mapa: Record<string, string> = {
+    confirma: 'confirma a vaga',
+    desiste: 'desiste da vaga',
+    duvida: 'tem dúvida',
+    extensao: 'pede mais prazo',
+    outro: 'outro assunto',
+  };
+  return mapa[classificacao] ?? classificacao;
+}
+
+const DATA_ISO = /^\d{4}-\d{2}-\d{2}T/;
+
+/**
+ * Valor de auditoria legível: data ISO vira data e hora, situação vira o rótulo
+ * da tela, o resto passa direto.
+ */
+export function valorAuditoria(valor: unknown): string {
+  if (valor === null || valor === undefined) {
+    return '—';
+  }
+  const texto = String(valor);
+  if (DATA_ISO.test(texto)) {
+    return dataHora(texto);
+  }
+  return rotuloSituacao(texto);
 }

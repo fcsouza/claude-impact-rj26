@@ -138,6 +138,9 @@
   border-radius: var(--fv-radius-pill);
 }
 .conteudo {
+  /* Item de grid não encolhe abaixo do conteúdo sem isto: a tabela larga
+     esticava a página inteira e a barra lateral ia junto. */
+  min-width: 0;
   max-width: 1240px;
   padding: var(--fv-space-6) var(--fv-space-10);
 }
@@ -191,7 +194,7 @@
 
 .kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(172px, 100%), 1fr));
   gap: var(--fv-space-3);
 }
 .kpi {
@@ -314,12 +317,15 @@ td.num {
 }
 
 .badge {
-  display: inline-block;
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
   padding: 2px 7px;
   margin-right: 4px;
   font: var(--fv-text-label);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  white-space: nowrap;
   border: 1px solid transparent;
   border-radius: var(--fv-radius-sm);
 }
@@ -380,6 +386,13 @@ td.num {
   cursor: not-allowed;
   opacity: 0.55;
 }
+.botao-perigo[disabled],
+.botao-ia[disabled] {
+  color: var(--fv-text-3);
+  background: var(--fv-surface-sunken);
+  border-color: var(--fv-border-strong);
+  opacity: 1;
+}
 .botao-secundario {
   color: var(--fv-text);
   background: var(--fv-surface);
@@ -438,7 +451,7 @@ label {
 }
 .linha-campos {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
   gap: var(--fv-space-3);
 }
 .filtros {
@@ -489,13 +502,16 @@ label {
 }
 
 .desabilitado {
-  color: var(--fv-text-disabled);
+  color: var(--fv-text-2);
   background: var(--fv-surface-sunken);
+  border: 1px solid var(--fv-border);
 }
 .aviso {
-  padding-left: var(--fv-space-3);
-  color: var(--fv-text-2);
-  border-left: 3px solid var(--fv-warn);
+  padding: 8px 10px;
+  color: var(--fv-warn);
+  background: var(--fv-warn-soft);
+  border: 1px solid var(--fv-warn-soft-border);
+  border-radius: var(--fv-radius-sm);
 }
 .erro {
   font: var(--fv-text-body);
@@ -603,9 +619,14 @@ label {
   width: min(380px, 92vw);
   padding: var(--fv-space-6);
   background: var(--fv-surface);
-  border-top: 4px solid var(--fv-cyan);
   border-radius: var(--fv-radius-lg);
   box-shadow: var(--fv-shadow-overlay);
+}
+/* A assinatura institucional é o mesmo filete da barra lateral, não uma faixa. */
+.marca-filete {
+  display: inline-block;
+  padding-bottom: 5px;
+  border-bottom: 2px solid var(--fv-cyan);
 }
 
 /* --- explicação por hover -------------------------------------------- */

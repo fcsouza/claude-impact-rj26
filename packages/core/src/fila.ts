@@ -17,8 +17,7 @@ export type Badge =
   | { tipo: 'selecionado_ha'; dias: number }
   | { tipo: 'prazo_vencido'; dias: number }
   | { tipo: 'inconsistencia'; detalhe: string }
-  | { tipo: 'contato_desatualizado'; canais: string[] }
-  | { tipo: 'bairro_diferente'; bairroFamilia: string; bairroUnidade: string };
+  | { tipo: 'contato_desatualizado'; canais: string[] };
 
 export interface LinhaFila {
   alunoAnon: string;
@@ -76,7 +75,6 @@ export async function filaDaUnidade(db: Database, filtro: FiltroFila): Promise<L
       bairroFamilia: sql<
         string | null
       >`coalesce(${inscricao.bairroCorrigido}, ${inscricao.bairro})`,
-      bairroUnidade: unidade.bairro,
       canaisSemEntrega: sql<string[] | null>`(
         select array_agg(distinct ${tentativa.canal}) from ${tentativa}
         where ${tentativa.convocacaoId} = ${convocacao.id} and ${tentativa.status} = 'falhou'
@@ -129,18 +127,6 @@ export async function filaDaUnidade(db: Database, filtro: FiltroFila): Promise<L
       badges.push({ canais: [...l.canaisSemEntrega].sort(), tipo: 'contato_desatualizado' });
     }
 
-    if (
-      l.bairroFamilia &&
-      l.bairroUnidade &&
-      normalizar(l.bairroFamilia) !== normalizar(l.bairroUnidade)
-    ) {
-      badges.push({
-        bairroFamilia: l.bairroFamilia,
-        bairroUnidade: l.bairroUnidade,
-        tipo: 'bairro_diferente',
-      });
-    }
-
     return {
       alunoAnon: l.alunoAnon,
       badges,
@@ -159,14 +145,6 @@ export async function filaDaUnidade(db: Database, filtro: FiltroFila): Promise<L
       turno: l.turno,
     };
   });
-}
-
-function normalizar(texto: string) {
-  return texto
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toUpperCase();
 }
 
 /**

@@ -23,7 +23,7 @@ interface Secretaria {
     nome: string;
     paradas: number;
     selecionadas: number;
-    taxaConfirmacao: number;
+    taxaConfirmacao: number | null;
     unidades: number;
   }[];
   grupamentos: { grupamento: string; total: number }[];
@@ -47,6 +47,7 @@ export default async function PainelSecretaria({
   const encerradas = p.cres.reduce((a, c) => a + c.convocacoesEncerradas, 0);
   const paradas = p.cres.reduce((a, c) => a + c.paradas, 0);
   const semResposta = p.cres.reduce((a, c) => a + c.expiradasSemResposta, 0);
+  const temCapacidade = p.bairros.some((b) => b.vagas !== null);
   const entregues = p.canais
     .filter((c) => ENTREGUES.has(c.status))
     .reduce((a, c) => a + c.total, 0);
@@ -141,7 +142,9 @@ export default async function PainelSecretaria({
                   <td className="num">{numero(c.unidades)}</td>
                   <td className="num">{numero(c.espera)}</td>
                   <td className="num">{numero(c.selecionadas)}</td>
-                  <td className="num">{percentual(c.taxaConfirmacao)}</td>
+                  <td className="num">
+                    {c.taxaConfirmacao === null ? '—' : percentual(c.taxaConfirmacao)}
+                  </td>
                   <td className="num">
                     {c.horasMediasDaVaga ? `${c.horasMediasDaVaga.toFixed(1)} h` : '—'}
                   </td>
@@ -185,7 +188,11 @@ export default async function PainelSecretaria({
       <div className="cartao">
         <div className="cartao-titulo">
           <h2>Déficit por bairro</h2>
-          <span className="cod">fila menos vaga livre · capacidade vem do datalake da cidade</span>
+          <span className="cod">
+            {temCapacidade
+              ? 'fila menos vaga livre · capacidade vem do datalake da cidade'
+              : 'fila em espera por bairro'}
+          </span>
         </div>
         <table>
           <thead>
@@ -193,9 +200,13 @@ export default async function PainelSecretaria({
               <th>Bairro</th>
               <th style={{ textAlign: 'right', width: 90 }}>Unidades</th>
               <th style={{ textAlign: 'right', width: 90 }}>Na fila</th>
-              <th style={{ textAlign: 'right', width: 110 }}>Capacidade</th>
-              <th style={{ textAlign: 'right', width: 110 }}>Matriculados</th>
-              <th style={{ textAlign: 'right', width: 100 }}>Déficit</th>
+              {temCapacidade ? (
+                <>
+                  <th style={{ textAlign: 'right', width: 110 }}>Capacidade</th>
+                  <th style={{ textAlign: 'right', width: 110 }}>Matriculados</th>
+                  <th style={{ textAlign: 'right', width: 100 }}>Déficit</th>
+                </>
+              ) : null}
             </tr>
           </thead>
           <tbody>
@@ -204,18 +215,22 @@ export default async function PainelSecretaria({
                 <td>{b.bairro ?? '—'}</td>
                 <td className="num">{numero(b.unidades)}</td>
                 <td className="num">{numero(b.espera)}</td>
-                <td className="num">{b.vagas === null ? '—' : numero(b.vagas)}</td>
-                <td className="num">{b.vagas === null ? '—' : numero(b.matriculados)}</td>
-                <td className="num">{b.deficit === null ? '—' : numero(b.deficit)}</td>
+                {temCapacidade ? (
+                  <>
+                    <td className="num">{b.vagas === null ? '—' : numero(b.vagas)}</td>
+                    <td className="num">{b.vagas === null ? '—' : numero(b.matriculados)}</td>
+                    <td className="num">{b.deficit === null ? '—' : numero(b.deficit)}</td>
+                  </>
+                ) : null}
               </tr>
             ))}
           </tbody>
         </table>
-        {p.bairros.every((b) => b.vagas === null) ? (
-          <p className="vazio">
-            Capacidade instalada ainda não importada. Rode a carga do datalake para ver o déficit.
+        {temCapacidade ? null : (
+          <p className="cod" style={{ marginTop: 'var(--fv-space-3)' }}>
+            Capacidade, matriculados e déficit ficam de fora até a carga do datalake rodar.
           </p>
-        ) : null}
+        )}
       </div>
 
       <p className="subtitulo">

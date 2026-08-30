@@ -23,14 +23,17 @@ export interface ItemTimeline {
   titulo: string;
 }
 
+const TITULO_DA_ACAO: Record<string, string> = {
+  abrir_vaga: 'Vaga aberta e criança selecionada',
+  extensao_prazo: 'Prazo de confirmação estendido',
+  notificar_secretaria: 'Secretaria avisada para ligar para a família',
+};
+
 function tituloDoEvento(acao: string, antes?: string, depois?: string): string {
   if (antes && depois) {
     return `${antes} → ${depois}`;
   }
-  if (acao === 'abrir_vaga') {
-    return 'Vaga aberta e criança selecionada';
-  }
-  return acao.replace(/_/g, ' ');
+  return TITULO_DA_ACAO[acao] ?? acao.replace(/_/g, ' ');
 }
 
 /** Timeline unificada da inscrição: tentativa, resposta, status, nota e edição de contato. */

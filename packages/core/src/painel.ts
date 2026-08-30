@@ -89,7 +89,8 @@ export async function desempenhoPorUnidade(db: Database, creId?: number) {
       espera: Number(f.espera ?? 0),
       horasMediasAteEncerrar: t?.horasAteEncerrar ? Number(t.horasAteEncerrar) : null,
       selecionadas: Number(f.selecionadas ?? 0),
-      taxaConfirmacao: f.total ? confirmadas / f.total : 0,
+      // Sem convocação encerrada não existe taxa. Zero por cento seria mentira.
+      taxaConfirmacao: f.total ? confirmadas / f.total : null,
       tentativasMedias: t?.tentativasMedias ? Number(t.tentativasMedias) : null,
     };
   });

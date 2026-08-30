@@ -1,5 +1,5 @@
 import { api } from '@/lib/api';
-import { dataHora } from '@/lib/formato';
+import { dataHora, rotuloAcao, rotuloEntidade, valorAuditoria } from '@/lib/formato';
 
 interface Evento {
   acao: string;
@@ -21,7 +21,7 @@ const resumoDiff = (
   }
   const chaves = [...new Set([...Object.keys(antes ?? {}), ...Object.keys(depois ?? {})])];
   return chaves
-    .map((c) => `${c}: ${String(antes?.[c] ?? '—')} → ${String(depois?.[c] ?? '—')}`)
+    .map((c) => `${c}: ${valorAuditoria(antes?.[c])} → ${valorAuditoria(depois?.[c])}`)
     .join(' · ');
 };
 
@@ -53,10 +53,13 @@ export default async function Auditoria() {
                 <tr key={e.id}>
                   <td className="mono">{dataHora(e.criadoEm)}</td>
                   <td>
-                    {e.entidade}
+                    {rotuloEntidade(e.entidade)}
                     <div className="cod">{e.entidadeId}</div>
                   </td>
-                  <td className="mono">{e.acao}</td>
+                  <td>
+                    <div className="nome-linha">{rotuloAcao(e.acao)}</div>
+                    <div className="cod">{e.acao}</div>
+                  </td>
                   <td>{resumoDiff(e.antesJson, e.depoisJson)}</td>
                   <td>{e.motivo ?? '—'}</td>
                 </tr>

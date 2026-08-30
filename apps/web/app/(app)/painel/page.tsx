@@ -60,7 +60,7 @@ interface Painel {
     espera: number;
     selecionadas: number;
     confirmadas: number;
-    taxaConfirmacao: number;
+    taxaConfirmacao: number | null;
     horasMediasAteEncerrar: number | null;
     tentativasMedias: number | null;
   }[];
@@ -141,48 +141,49 @@ export default async function PainelCre({
           <h2>Vagas paradas · convocado sem resposta</h2>
           <span className="cod">{p.paradas.length} casos</span>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Criança</th>
-              <th>Unidade</th>
-              <th style={{ width: 150 }}>Parada desde</th>
-              <th style={{ width: 120 }}>Prazo</th>
-              <th style={{ textAlign: 'right', width: 110 }}>Tentativas</th>
-              <th style={{ width: 90 }}>Ação</th>
-            </tr>
-          </thead>
-          <tbody>
-            {p.paradas.map((linha) => {
-              const prz = prazo(linha.prazoFim);
-              return (
-                <tr className="alerta" key={linha.convocacaoId}>
-                  <td>
-                    <div className="nome-linha">{linha.nome}</div>
-                    <div className="cod">
-                      {linha.grupamento} · {linha.turno}
-                    </div>
-                  </td>
-                  <td>{linha.unidade}</td>
-                  <td className="mono">{data(linha.iniciadaEm)}</td>
-                  <td className={prz.classe}>{prz.texto}</td>
-                  <td className="num">
-                    {linha.tentativas}
-                    <div className="cod" style={{ textAlign: 'right' }}>
-                      {linha.respostas} resposta(s)
-                    </div>
-                  </td>
-                  <td>
-                    <Link href={`/ficha/${linha.inscricaoId}`}>Ver ficha</Link>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
         {p.paradas.length === 0 ? (
           <p className="vazio">Nenhuma vaga parada acima de {limite} dias.</p>
-        ) : null}
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Criança</th>
+                <th>Unidade</th>
+                <th style={{ width: 150 }}>Parada desde</th>
+                <th style={{ width: 120 }}>Prazo</th>
+                <th style={{ textAlign: 'right', width: 110 }}>Tentativas</th>
+                <th style={{ width: 90 }}>Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.paradas.map((linha) => {
+                const prz = prazo(linha.prazoFim);
+                return (
+                  <tr className="alerta" key={linha.convocacaoId}>
+                    <td>
+                      <div className="nome-linha">{linha.nome}</div>
+                      <div className="cod">
+                        {linha.grupamento} · {linha.turno}
+                      </div>
+                    </td>
+                    <td>{linha.unidade}</td>
+                    <td className="mono">{data(linha.iniciadaEm)}</td>
+                    <td className={prz.classe}>{prz.texto}</td>
+                    <td className="num">
+                      {linha.tentativas}
+                      <div className="cod" style={{ textAlign: 'right' }}>
+                        {linha.respostas} resposta(s)
+                      </div>
+                    </td>
+                    <td>
+                      <Link href={`/ficha/${linha.inscricaoId}`}>Ver ficha</Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <div className="cartao">
@@ -363,7 +364,9 @@ export default async function PainelCre({
                   </td>
                   <td className="num">{numero(u.espera)}</td>
                   <td className="num">{numero(u.selecionadas)}</td>
-                  <td className="num">{percentual(u.taxaConfirmacao)}</td>
+                  <td className="num">
+                    {u.taxaConfirmacao === null ? '—' : percentual(u.taxaConfirmacao)}
+                  </td>
                   <td className="num">
                     {u.horasMediasAteEncerrar ? `${u.horasMediasAteEncerrar.toFixed(1)} h` : '—'}
                   </td>

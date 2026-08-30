@@ -1,6 +1,15 @@
 import Link from 'next/link';
+import { Info } from '@/components/info';
 import { api } from '@/lib/api';
-import { data, dataHora, numero, percentual, prazo } from '@/lib/formato';
+import {
+  DICAS,
+  data,
+  dataHora,
+  numero,
+  percentual,
+  prazo,
+  rotuloClassificacao,
+} from '@/lib/formato';
 
 interface VisaoUnidade {
   capacidades: {
@@ -109,7 +118,10 @@ export default async function PainelUnidade({
             <thead>
               <tr>
                 <th>Criança</th>
-                <th style={{ width: 110 }}>Dia</th>
+                <th style={{ width: 110 }}>
+                  Dia
+                  <Info texto={DICAS.diaDaRegua} />
+                </th>
                 <th style={{ width: 130 }}>Prazo</th>
                 <th style={{ textAlign: 'right', width: 120 }}>Tentativas</th>
                 <th style={{ width: 90 }}>Ação</th>
@@ -131,11 +143,11 @@ export default async function PainelUnidade({
                     <td className="num">
                       {c.tentativas}
                       <div className="cod" style={{ textAlign: 'right' }}>
-                        {c.respostas} resposta(s)
+                        {c.respostas === 1 ? '1 resposta' : `${c.respostas} respostas`}
                       </div>
                     </td>
                     <td>
-                      <Link href={`/ficha/${c.inscricaoId}`}>Ver ficha</Link>
+                      <Link href={`/ficha/${c.inscricaoId}`}>Abrir ficha</Link>
                     </td>
                   </tr>
                 );
@@ -170,14 +182,19 @@ export default async function PainelUnidade({
                   <td>{m.trechoChave ?? m.texto.slice(0, 90)}</td>
                   <td>
                     {m.classificacao ? (
-                      <span className="badge badge-aviso">{m.classificacao}</span>
+                      <span className="termo">
+                        <span className="badge badge-ia">
+                          {rotuloClassificacao(m.classificacao)}
+                        </span>
+                        <Info texto={DICAS.leituraIa} />
+                      </span>
                     ) : (
                       '—'
                     )}
                   </td>
                   <td className="mono">{dataHora(m.recebidaEm)}</td>
                   <td>
-                    <Link href={`/ficha/${m.inscricaoId}`}>Abrir</Link>
+                    <Link href={`/ficha/${m.inscricaoId}`}>Abrir ficha</Link>
                   </td>
                 </tr>
               ))}
@@ -227,7 +244,7 @@ export default async function PainelUnidade({
               <tr>
                 <th>Criança</th>
                 <th style={{ width: 160 }}>Último contato</th>
-                <th style={{ width: 90 }}>Ação</th>
+                <th style={{ width: 140 }}>Ação</th>
               </tr>
             </thead>
             <tbody>
@@ -241,7 +258,7 @@ export default async function PainelUnidade({
                   </td>
                   <td>{c.meses === null ? 'sem registro' : `há ${c.meses} meses`}</td>
                   <td>
-                    <Link href={`/ficha/${c.inscricaoId}`}>Atualizar</Link>
+                    <Link href={`/ficha/${c.inscricaoId}?aba=contato`}>Atualizar contato</Link>
                   </td>
                 </tr>
               ))}
