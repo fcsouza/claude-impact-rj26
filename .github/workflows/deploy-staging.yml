@@ -1,12 +1,14 @@
 name: Deploy staging
 
-# Sobe API e front no Dokploy. Os segredos ficam em Settings → Secrets → Actions:
-#   DOKPLOY_URL           endereço da instância, ex.: https://dokploy.exemplo.com
-#   DOKPLOY_API_KEY       token gerado em Settings → Profile → API/CLI
-#   DOKPLOY_API_ID        id da aplicação da API no Dokploy
-#   DOKPLOY_WEB_ID        id da aplicação do front no Dokploy
+# Manda o Dokploy puxar as imagens novas e subir o compose.
+# Segredos em Settings → Secrets → Actions:
+#   DOKPLOY_URL       https://painel.pulsolab.com.br
+#   DOKPLOY_API_KEY   token de Settings → Profile → API/CLI
+#   DOKPLOY_COMPOSE_ID  id do compose criado no projeto fila-viva
 on:
-  push:
+  workflow_run:
+    workflows: [Imagens]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -16,29 +18,16 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
-    environment: staging
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Disparar deploy da API
+      - name: Subir o compose no Dokploy
         env:
           DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
           DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-          APP_ID: ${{ secrets.DOKPLOY_API_ID }}
+          COMPOSE_ID: ${{ secrets.DOKPLOY_COMPOSE_ID }}
         run: |
-          curl -sS --fail-with-body -X POST "$DOKPLOY_URL/api/application.deploy" \
+          curl -sS --fail-with-body -X POST "$DOKPLOY_URL/api/compose.deploy" \
             -H "x-api-key: $DOKPLOY_API_KEY" \
             -H 'content-type: application/json' \
-            -d "{\"json\":{\"applicationId\":\"$APP_ID\"}}"
-
-      - name: Disparar deploy do front
-        env:
-          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
-          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
-          APP_ID: ${{ secrets.DOKPLOY_WEB_ID }}
-        run: |
-          curl -sS --fail-with-body -X POST "$DOKPLOY_URL/api/application.deploy" \
-            -H "x-api-key: $DOKPLOY_API_KEY" \
-            -H 'content-type: application/json' \
-            -d "{\"json\":{\"applicationId\":\"$APP_ID\"}}"
+            -d "{\"json\":{\"composeId\":\"$COMPOSE_ID\"}}"

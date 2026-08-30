@@ -1,0 +1,85 @@
+# Compose que o Dokploy roda em staging. As imagens vêm prontas do ghcr,
+# construídas pelo GitHub Actions — o Dokploy só puxa e sobe.
+name: fila-viva
+
+services:
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks: [fila-viva]
+
+  api:
+    image: ghcr.io/fcsouza/claude-impact-rj26/api:${TAG_IMAGEM:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_PORT: '3333'
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: redis://redis:6379
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      WEB_URL: ${WEB_URL}
+      API_URL: ${API_URL}
+      WEBHOOK_TOKEN: ${WEBHOOK_TOKEN}
+      CANAL_WHATSAPP: ${CANAL_WHATSAPP:-mock}
+      CANAL_SMS: ${CANAL_SMS:-mock}
+      CANAL_EMAIL: ${CANAL_EMAIL:-mock}
+      AI_PROVIDER: ${AI_PROVIDER:-fallback}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      KAPSO_API_KEY: ${KAPSO_API_KEY:-}
+      KAPSO_PHONE_NUMBER_ID: ${KAPSO_PHONE_NUMBER_ID:-}
+      CONTELE_API_KEY: ${CONTELE_API_KEY:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-fila-viva@pulsolab.com.br}
+    depends_on:
+      redis: { condition: service_healthy }
+    networks: [fila-viva]
+
+  worker:
+    image: ghcr.io/fcsouza/claude-impact-rj26/worker:${TAG_IMAGEM:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: redis://redis:6379
+      CANAL_WHATSAPP: ${CANAL_WHATSAPP:-mock}
+      CANAL_SMS: ${CANAL_SMS:-mock}
+      CANAL_EMAIL: ${CANAL_EMAIL:-mock}
+      AI_PROVIDER: ${AI_PROVIDER:-fallback}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      KAPSO_API_KEY: ${KAPSO_API_KEY:-}
+      KAPSO_PHONE_NUMBER_ID: ${KAPSO_PHONE_NUMBER_ID:-}
+      CONTELE_API_KEY: ${CONTELE_API_KEY:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-fila-viva@pulsolab.com.br}
+    depends_on:
+      redis: { condition: service_healthy }
+    networks: [fila-viva]
+
+  web:
+    image: ghcr.io/fcsouza/claude-impact-rj26/web:${TAG_IMAGEM:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: '3000'
+      # O front fala com a API pela rede interna; o navegador só enxerga o front.
+      API_URL: http://api:3333
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+    depends_on: [api]
+    networks: [fila-viva]
+
+volumes:
+  redis-data:
+
+networks:
+  fila-viva:
+    driver: bridge
