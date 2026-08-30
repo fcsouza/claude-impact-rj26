@@ -4,6 +4,9 @@ import { alunosInconsistentes } from './fila.ts';
 
 export const DIAS_SEM_RESPOSTA_PADRAO = 2;
 
+/** A tela mostra as primeiras linhas; trazer as duas mil da rede é só peso no fio. */
+export const LIMITE_DESEMPENHO = 30;
+
 /** Vagas selecionadas há mais de N dias sem resposta — a primeira tela da CRE. */
 export async function vagasParadas(db: Database, args: { creId?: number; dias?: number } = {}) {
   const limite = new Date(Date.now() - (args.dias ?? DIAS_SEM_RESPOSTA_PADRAO) * 86_400_000);
@@ -42,7 +45,11 @@ export async function vagasParadas(db: Database, args: { creId?: number; dias?: 
 }
 
 /** Conversão e tempo de convocação por unidade. */
-export async function desempenhoPorUnidade(db: Database, creId?: number) {
+export async function desempenhoPorUnidade(
+  db: Database,
+  creId?: number,
+  limite = LIMITE_DESEMPENHO
+) {
   const condicoes = creId ? [eq(unidade.creId, creId)] : [];
 
   const filas = await db
@@ -59,7 +66,8 @@ export async function desempenhoPorUnidade(db: Database, creId?: number) {
     .leftJoin(opcao, eq(opcao.unidadeId, unidade.escCodigo))
     .where(condicoes.length ? and(...condicoes) : undefined)
     .groupBy(unidade.escCodigo, unidade.nome, unidade.bairro)
-    .orderBy(desc(count(opcao.id)));
+    .orderBy(desc(count(opcao.id)))
+    .limit(limite);
 
   const tempos = await db
     .select({
@@ -89,7 +97,8 @@ export async function desempenhoPorUnidade(db: Database, creId?: number) {
       espera: Number(f.espera ?? 0),
       horasMediasAteEncerrar: t?.horasAteEncerrar ? Number(t.horasAteEncerrar) : null,
       selecionadas: Number(f.selecionadas ?? 0),
-      taxaConfirmacao: f.total ? confirmadas / f.total : 0,
+      // Sem convocação encerrada não existe taxa. Zero por cento seria mentira.
+      taxaConfirmacao: f.total ? confirmadas / f.total : null,
       tentativasMedias: t?.tentativasMedias ? Number(t.tentativasMedias) : null,
     };
   });
@@ -114,7 +123,7 @@ export async function ocupacaoPorBairro(db: Database, creId?: number) {
 }
 
 /** Cadastros com situações conflitantes, com o detalhe de onde cada uma está. */
-export async function inconsistencias(db: Database) {
+export async function inconsistencias(db: Database, creId?: number) {
   const alunos = [...(await alunosInconsistentes(db))];
   if (alunos.length === 0) {
     return [];
@@ -136,7 +145,13 @@ export async function inconsistencias(db: Database) {
     .from(opcao)
     .innerJoin(inscricao, eq(opcao.inscricaoId, inscricao.id))
     .innerJoin(unidade, eq(opcao.unidadeId, unidade.escCodigo))
-    .where(and(inArray(inscricao.alunoAnon, alunos), inArray(opcao.situacao, ['Selecionado'])))
+    .where(
+      and(
+        inArray(inscricao.alunoAnon, alunos),
+        inArray(opcao.situacao, ['Selecionado']),
+        ...(creId ? [eq(unidade.creId, creId)] : [])
+      )
+    )
     .orderBy(inscricao.alunoAnon, opcao.ordem);
 }
 

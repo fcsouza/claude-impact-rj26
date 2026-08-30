@@ -1,6 +1,16 @@
 import Link from 'next/link';
+import { Paginacao } from '@/components/paginacao';
 import { api } from '@/lib/api';
-import { data, numero, percentual, prazo } from '@/lib/formato';
+import {
+  alarmeDeEntrega,
+  data,
+  numero,
+  paginar,
+  percentual,
+  prazo,
+  taxa,
+  valorRepetido,
+} from '@/lib/formato';
 
 interface Painel {
   bairros: {
@@ -11,7 +21,10 @@ interface Painel {
     selecionadas: number;
   }[];
   canais: { canal: string; status: string; total: number }[];
-  expiradas: { unidadeId: string; unidade: string; total: number }[];
+  expiradas: {
+    linhas: { unidadeId: string; unidade: string; total: number }[];
+    temMais: boolean;
+  };
   inconsistencias: {
     alunoAnon: string;
     nome: string;
@@ -46,12 +59,16 @@ interface Painel {
     vencido: boolean;
   }[];
   semMovimento: {
-    unidadeId: string;
-    unidade: string;
-    bairro: string | null;
-    espera: number;
-    ultimaVaga: string | null;
-  }[];
+    linhas: {
+      unidadeId: string;
+      unidade: string;
+      bairro: string | null;
+      espera: number;
+      ultimaVaga: string | null;
+    }[];
+    temMais: boolean;
+  };
+  totalUnidades: number;
   unidades: {
     unidadeId: string;
     unidade: string;
@@ -60,7 +77,7 @@ interface Painel {
     espera: number;
     selecionadas: number;
     confirmadas: number;
-    taxaConfirmacao: number;
+    taxaConfirmacao: number | null;
     horasMediasAteEncerrar: number | null;
     tentativasMedias: number | null;
   }[];
@@ -69,16 +86,24 @@ interface Painel {
 export default async function PainelCre({
   searchParams,
 }: {
-  searchParams: Promise<{ dias?: string }>;
+  searchParams: Promise<{ dias?: string; pb?: string; pm?: string; pu?: string }>;
 }) {
-  const { dias } = await searchParams;
+  const filtros = await searchParams;
+  const { dias } = filtros;
   const limite = dias ?? '2';
   const p = await api<Painel>(`/api/painel?dias=${limite}`);
+  const semMovimento = paginar(p.semMovimento.linhas, filtros.pm, 15);
+  const ultimaVagaIgual = valorRepetido(p.semMovimento.linhas, (u) =>
+    u.ultimaVaga ? data(u.ultimaVaga) : 'nunca'
+  );
+  const desempenho = paginar(p.unidades, filtros.pu, 15);
+  const bairros = paginar(p.bairros, filtros.pb, 15);
 
   const entregues = p.canais
     .filter((c) => c.status === 'entregue' || c.status === 'lido' || c.status === 'respondido')
     .reduce((a, c) => a + c.total, 0);
   const totalTentativas = p.canais.reduce((a, c) => a + c.total, 0);
+  const entrega = taxa(entregues, totalTentativas);
 
   const kpis = [
     {
@@ -92,16 +117,19 @@ export default async function PainelCre({
       valor: numero(new Set(p.inconsistencias.map((i) => i.alunoAnon)).size),
     },
     {
-      dica: `${numero(totalTentativas)} tentativas em 30 dias`,
+      alarme: alarmeDeEntrega(entregues, totalTentativas),
+      dica: entrega.fraca
+        ? 'amostra pequena para virar percentual'
+        : `${numero(totalTentativas)} tentativas em 30 dias`,
       rotulo: 'Entrega dos canais',
-      valor: totalTentativas ? percentual(entregues / totalTentativas) : '—',
+      valor: entrega.texto,
     },
     {
       dica: 'vencidos ou vencendo hoje',
       rotulo: 'Prazos no limite',
       valor: numero(p.prazos.length),
     },
-    { dica: 'processo 195/2025', rotulo: 'Unidades no polo', valor: numero(p.unidades.length) },
+    { dica: 'processo 195/2025', rotulo: 'Unidades no polo', valor: numero(p.totalUnidades) },
   ];
 
   return (
@@ -111,8 +139,8 @@ export default async function PainelCre({
           <div className="eyebrow">Coordenadoria Regional de Educação</div>
           <h1>Painel de gargalos</h1>
           <p className="subtitulo">
-            {p.unidades.length} unidades · processo 195/2025 · alerta acima de {limite} dias sem
-            resposta
+            {numero(p.totalUnidades)} unidades · processo 195/2025 · alerta acima de {limite} dias
+            sem resposta
           </p>
         </div>
         <form className="filtros" method="get" style={{ margin: 0 }}>
@@ -128,7 +156,7 @@ export default async function PainelCre({
 
       <div className="kpis" style={{ marginBottom: 'var(--fv-space-4)' }}>
         {kpis.map((k) => (
-          <div className="kpi" key={k.rotulo}>
+          <div className={k.alarme ? `kpi ${k.alarme}` : 'kpi'} key={k.rotulo}>
             <div className="rotulo">{k.rotulo}</div>
             <div className="valor">{k.valor}</div>
             <div className="dica">{k.dica}</div>
@@ -141,48 +169,49 @@ export default async function PainelCre({
           <h2>Vagas paradas · convocado sem resposta</h2>
           <span className="cod">{p.paradas.length} casos</span>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Criança</th>
-              <th>Unidade</th>
-              <th style={{ width: 150 }}>Parada desde</th>
-              <th style={{ width: 120 }}>Prazo</th>
-              <th style={{ textAlign: 'right', width: 110 }}>Tentativas</th>
-              <th style={{ width: 90 }}>Ação</th>
-            </tr>
-          </thead>
-          <tbody>
-            {p.paradas.map((linha) => {
-              const prz = prazo(linha.prazoFim);
-              return (
-                <tr className="alerta" key={linha.convocacaoId}>
-                  <td>
-                    <div className="nome-linha">{linha.nome}</div>
-                    <div className="cod">
-                      {linha.grupamento} · {linha.turno}
-                    </div>
-                  </td>
-                  <td>{linha.unidade}</td>
-                  <td className="mono">{data(linha.iniciadaEm)}</td>
-                  <td className={prz.classe}>{prz.texto}</td>
-                  <td className="num">
-                    {linha.tentativas}
-                    <div className="cod" style={{ textAlign: 'right' }}>
-                      {linha.respostas} resposta(s)
-                    </div>
-                  </td>
-                  <td>
-                    <Link href={`/ficha/${linha.inscricaoId}`}>Ver ficha</Link>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
         {p.paradas.length === 0 ? (
           <p className="vazio">Nenhuma vaga parada acima de {limite} dias.</p>
-        ) : null}
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Criança</th>
+                <th>Unidade</th>
+                <th style={{ width: 150 }}>Parada desde</th>
+                <th style={{ width: 120 }}>Prazo</th>
+                <th style={{ textAlign: 'right', width: 110 }}>Tentativas</th>
+                <th style={{ width: 90 }}>Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.paradas.map((linha) => {
+                const prz = prazo(linha.prazoFim);
+                return (
+                  <tr className="alerta" key={linha.convocacaoId}>
+                    <td>
+                      <div className="nome-linha">{linha.nome}</div>
+                      <div className="cod">
+                        {linha.grupamento} · {linha.turno}
+                      </div>
+                    </td>
+                    <td>{linha.unidade}</td>
+                    <td className="mono">{data(linha.iniciadaEm)}</td>
+                    <td className={prz.classe}>{prz.texto}</td>
+                    <td className="num">
+                      {linha.tentativas}
+                      <div className="cod" style={{ textAlign: 'right' }}>
+                        {linha.respostas} resposta(s)
+                      </div>
+                    </td>
+                    <td>
+                      <Link href={`/ficha/${linha.inscricaoId}`}>Ver ficha</Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <div className="cartao">
@@ -272,9 +301,13 @@ export default async function PainelCre({
       <div className="cartao">
         <div className="cartao-titulo">
           <h2>Unidades sem movimento</h2>
-          <span className="cod">fila cheia e nenhuma vaga aberta em 14 dias</span>
+          <span className="cod">
+            fila cheia e nenhuma vaga aberta em 14 dias
+            {ultimaVagaIgual ? ` · última vaga: ${ultimaVagaIgual} em todas` : ''}
+            {p.semMovimento.temMais ? ' · mostrando as 50 primeiras' : ''}
+          </span>
         </div>
-        {p.semMovimento.length === 0 ? (
+        {p.semMovimento.linhas.length === 0 ? (
           <p className="vazio">Todas as unidades com fila movimentaram vaga no período.</p>
         ) : (
           <table>
@@ -282,19 +315,21 @@ export default async function PainelCre({
               <tr>
                 <th>Unidade</th>
                 <th style={{ textAlign: 'right', width: 100 }}>Na fila</th>
-                <th style={{ width: 160 }}>Última vaga</th>
+                {ultimaVagaIgual ? null : <th style={{ width: 160 }}>Última vaga</th>}
                 <th style={{ width: 90 }}>Ação</th>
               </tr>
             </thead>
             <tbody>
-              {p.semMovimento.map((u) => (
+              {semMovimento.itens.map((u) => (
                 <tr className="alerta" key={u.unidadeId}>
                   <td>
                     <div className="nome-linha">{u.unidade}</div>
                     <div className="cod">{u.bairro ?? ''}</div>
                   </td>
                   <td className="num">{numero(u.espera)}</td>
-                  <td className="mono">{u.ultimaVaga ? data(u.ultimaVaga) : 'nunca'}</td>
+                  {ultimaVagaIgual ? null : (
+                    <td className="mono">{u.ultimaVaga ? data(u.ultimaVaga) : 'nunca'}</td>
+                  )}
                   <td>
                     <Link href={`/unidade/${u.unidadeId}`}>Abrir</Link>
                   </td>
@@ -303,14 +338,27 @@ export default async function PainelCre({
             </tbody>
           </table>
         )}
+        {p.semMovimento.linhas.length > 0 ? (
+          <Paginacao
+            base="/painel"
+            filtros={filtros}
+            pagina={semMovimento.pagina}
+            param="pm"
+            porPagina={semMovimento.porPagina}
+            total={semMovimento.total}
+          />
+        ) : null}
       </div>
 
       <div className="cartao">
         <div className="cartao-titulo">
           <h2>Convocação expirada sem resposta</h2>
-          <span className="cod">contato da família não alcançou ninguém</span>
+          <span className="cod">
+            contato da família não alcançou ninguém
+            {p.expiradas.temMais ? ' · mostrando as 50 primeiras' : ''}
+          </span>
         </div>
-        {p.expiradas.length === 0 ? (
+        {p.expiradas.linhas.length === 0 ? (
           <p className="vazio">Nenhuma convocação expirou sem resposta.</p>
         ) : (
           <table>
@@ -322,7 +370,7 @@ export default async function PainelCre({
               </tr>
             </thead>
             <tbody>
-              {p.expiradas.map((e) => (
+              {p.expiradas.linhas.map((e) => (
                 <tr key={e.unidadeId}>
                   <td>{e.unidade}</td>
                   <td className="num">{numero(e.total)}</td>
@@ -353,7 +401,7 @@ export default async function PainelCre({
               </tr>
             </thead>
             <tbody>
-              {p.unidades.slice(0, 25).map((u) => (
+              {desempenho.itens.map((u) => (
                 <tr key={u.unidadeId}>
                   <td>
                     <Link className="nome-linha" href={`/unidade/${u.unidadeId}`}>
@@ -363,7 +411,9 @@ export default async function PainelCre({
                   </td>
                   <td className="num">{numero(u.espera)}</td>
                   <td className="num">{numero(u.selecionadas)}</td>
-                  <td className="num">{percentual(u.taxaConfirmacao)}</td>
+                  <td className="num">
+                    {u.taxaConfirmacao === null ? '—' : percentual(u.taxaConfirmacao)}
+                  </td>
                   <td className="num">
                     {u.horasMediasAteEncerrar ? `${u.horasMediasAteEncerrar.toFixed(1)} h` : '—'}
                   </td>
@@ -375,6 +425,14 @@ export default async function PainelCre({
             </tbody>
           </table>
         </div>
+        <Paginacao
+          base="/painel"
+          filtros={filtros}
+          pagina={desempenho.pagina}
+          param="pu"
+          porPagina={desempenho.porPagina}
+          total={desempenho.total}
+        />
       </div>
 
       <div className="cartao">
@@ -392,7 +450,7 @@ export default async function PainelCre({
             </tr>
           </thead>
           <tbody>
-            {p.bairros.slice(0, 15).map((b) => (
+            {bairros.itens.map((b) => (
               <tr key={b.bairro ?? 'sem-bairro'}>
                 <td>{b.bairro ?? '—'}</td>
                 <td className="num">{numero(b.unidades)}</td>
@@ -403,6 +461,14 @@ export default async function PainelCre({
             ))}
           </tbody>
         </table>
+        <Paginacao
+          base="/painel"
+          filtros={filtros}
+          pagina={bairros.pagina}
+          param="pb"
+          porPagina={bairros.porPagina}
+          total={bairros.total}
+        />
       </div>
     </>
   );

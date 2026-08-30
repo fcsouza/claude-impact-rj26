@@ -20,9 +20,11 @@ export default async function Inicio() {
     redirect(`/unidade/${sessao.user.unidadeId}`);
   }
 
-  const unidades = await api<Unidade[]>('/api/fila/unidades').catch(() => []);
-  if (unidades[0]) {
-    redirect(`/fila/${unidades[0].escCodigo}`);
+  const lista = await api<{ unidades: Unidade[] }>('/api/fila/unidades?limite=1').catch(() => ({
+    unidades: [],
+  }));
+  if (lista.unidades[0]) {
+    redirect(`/fila/${lista.unidades[0].escCodigo}`);
   }
 
   return <p className="vazio">Nenhuma unidade vinculada a este usuário.</p>;

@@ -3,6 +3,19 @@
 Cada canal implementa `send()` e `parseWebhook()`. O adapter `mock` funciona sem chave
 nenhuma e escreve a mensagem no log do worker — é ele que sustenta a demonstração.
 
+## Disparo manual
+
+A ficha tem, na aba "Tentativa manual", três botões que mandam a mensagem da convocação
+na hora por WhatsApp, SMS ou e-mail. O disparo entra na mesma fila do envio automático —
+é o caminho real, com o provedor de verdade — e grava tentativa com autor e horário.
+
+A chave de idempotência nasce na API, não no worker: `convocacao:canal:manual:<epoch>`.
+Se o envio cair no meio, o retry do BullMQ reencontra a linha e não manda a mesma
+mensagem duas vezes. Como a chave é própria, o disparo manual não disputa a do dia: dá
+para testar um canal que já saiu hoje.
+
+Só funciona com convocação aberta, e o destino é o contato vigente da família.
+
 ## WhatsApp (Kapso)
 
 Endereço: `https://api.kapso.ai/meta/whatsapp/v24.0/{phone_number_id}/messages`,

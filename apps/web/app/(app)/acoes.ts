@@ -53,6 +53,19 @@ export async function registrarTentativaManual(entrada: {
   return saida;
 }
 
+export async function dispararTentativa(entrada: {
+  convocacaoId: string;
+  inscricaoId: string;
+  canal: 'whatsapp' | 'sms' | 'email';
+}) {
+  const saida = await api<{ canal: string; chave: string; enfileirado: boolean }>(
+    `/api/convocacoes/${entrada.convocacaoId}/disparar`,
+    json({ canal: entrada.canal })
+  );
+  revalidatePath(`/ficha/${entrada.inscricaoId}`);
+  return saida;
+}
+
 export async function salvarContato(entrada: {
   inscricaoId: string;
   telefone?: string;

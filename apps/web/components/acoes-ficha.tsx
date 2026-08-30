@@ -6,6 +6,7 @@ import {
   atualizarStatus,
   cancelarConvocacao,
   confirmarVaga,
+  dispararTentativa,
   estenderPrazo,
   notificarSecretaria,
   registrarTentativaManual,
@@ -24,6 +25,23 @@ type Contato = {
 } | null;
 
 type Aba = 'resposta' | 'contato' | 'tentativa' | 'nota' | 'situacao';
+
+/** Mesma escolha de destino do worker: WhatsApp cai no telefone e vice-versa. */
+function destinoDe(canal: 'whatsapp' | 'sms' | 'email', contato: Contato) {
+  if (canal === 'email') {
+    return contato?.email ?? null;
+  }
+  if (canal === 'whatsapp') {
+    return contato?.whatsapp ?? contato?.telefone ?? null;
+  }
+  return contato?.telefone ?? contato?.whatsapp ?? null;
+}
+
+const DISPAROS = [
+  { canal: 'whatsapp', rotulo: 'WhatsApp' },
+  { canal: 'sms', rotulo: 'SMS' },
+  { canal: 'email', rotulo: 'E-mail' },
+] as const;
 
 /** Cada opção do dropdown já carrega para onde a máquina de estados leva a opção. */
 const STATUS = [
@@ -329,6 +347,35 @@ export function AcoesFicha({
                 >
                   Registrar tentativa
                 </button>
+
+                <div className="disparo">
+                  <h3>Disparar a mensagem da convocação agora</h3>
+                  <p className="cod">
+                    Sai pelo mesmo caminho do envio automático, para o contato vigente. O resultado
+                    aparece na timeline em alguns segundos.
+                  </p>
+                  <div className="filtros">
+                    {DISPAROS.map((d) => {
+                      const destino = destinoDe(d.canal, contato);
+                      return (
+                        <button
+                          className="botao botao-secundario"
+                          disabled={pendente || !destino}
+                          key={d.canal}
+                          onClick={() =>
+                            executar(`Disparo por ${d.rotulo} na fila — veja a timeline.`, () =>
+                              dispararTentativa({ canal: d.canal, convocacaoId, inscricaoId })
+                            )
+                          }
+                          title={destino ?? `sem ${d.rotulo} no contato da família`}
+                          type="button"
+                        >
+                          {d.rotulo}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </>
             ) : (
               <p className="vazio">Sem convocação aberta para registrar tentativa.</p>

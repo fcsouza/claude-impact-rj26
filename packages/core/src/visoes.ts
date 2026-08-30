@@ -15,6 +15,8 @@ import { and, asc, avg, count, desc, eq, inArray, lte, sql } from 'drizzle-orm';
 import { diaISO, diasCorridosDesde, fimDoDiaNoRio } from './dias-uteis.ts';
 
 export const DIAS_SEM_MOVIMENTO = 14;
+/** Lista para agir, não relatório: mostra as primeiras e avisa que há mais. */
+export const LIMITE_LISTA = 50;
 const MESES_ATE_CONTATO_ENVELHECER = 12;
 
 const ESPERA = sql<number>`sum(case when ${opcao.situacao} = 'Lista de espera' then 1 else 0 end)`;
@@ -40,7 +42,7 @@ export interface LinhaCre {
   nome: string;
   paradas: number;
   selecionadas: number;
-  taxaConfirmacao: number;
+  taxaConfirmacao: number | null;
   unidades: number;
 }
 
@@ -132,7 +134,8 @@ export async function redePorCre(db: Database, dias = 2): Promise<LinhaCre[]> {
         nome: f.nome,
         paradas: porCre.get(f.creId) ?? 0,
         selecionadas: Number(f.selecionadas ?? 0),
-        taxaConfirmacao: total ? Number(decididas?.confirmadas ?? 0) / total : 0,
+        // Sem convocação encerrada não existe taxa. Zero por cento seria mentira.
+        taxaConfirmacao: total ? Number(decididas?.confirmadas ?? 0) / total : null,
         unidades: Number(f.unidades ?? 0),
       };
     })
@@ -258,8 +261,8 @@ export async function prazosDoDia(db: Database, creId?: number) {
 }
 
 /** Convocação que expirou sem uma resposta sequer, por unidade: contato morto. */
-export async function expiradasSemResposta(db: Database, creId?: number) {
-  return await db
+export async function expiradasSemResposta(db: Database, creId?: number, limite = LIMITE_LISTA) {
+  const linhas = await db
     .select({
       total: count(),
       unidade: unidade.nome,
@@ -276,14 +279,18 @@ export async function expiradasSemResposta(db: Database, creId?: number) {
       )
     )
     .groupBy(unidade.escCodigo, unidade.nome)
-    .orderBy(desc(count()));
+    .orderBy(desc(count()))
+    .limit(limite + 1);
+
+  return { linhas: linhas.slice(0, limite), temMais: linhas.length > limite };
 }
 
 /** Unidade que não abriu vaga nem convocou ninguém no período — a creche que sumiu. */
 export async function unidadesSemMovimento(
   db: Database,
-  args: { creId?: number; dias?: number } = {}
+  args: { creId?: number; dias?: number; limite?: number } = {}
 ) {
+  const limite = args.limite ?? LIMITE_LISTA;
   // Data crua dentro de `sql` vira parâmetro sem tipo e o driver não serializa; ISO com cast.
   const desde = new Date(Date.now() - (args.dias ?? DIAS_SEM_MOVIMENTO) * 86_400_000).toISOString();
 
@@ -315,10 +322,14 @@ export async function unidadesSemMovimento(
     )
     .groupBy(unidade.escCodigo, unidade.nome, unidade.bairro)
     .having(sql`${ESPERA} > 0`)
-    .orderBy(desc(ESPERA));
+    .orderBy(desc(ESPERA))
+    .limit(limite + 1);
 
   // `sum()` volta como texto no driver; a tela formata número.
-  return linhas.map((l) => ({ ...l, espera: Number(l.espera) }));
+  return {
+    linhas: linhas.slice(0, limite).map((l) => ({ ...l, espera: Number(l.espera) })),
+    temMais: linhas.length > limite,
+  };
 }
 
 /* ---------------------------------------------------------- nível 3: unidade */

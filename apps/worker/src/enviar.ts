@@ -67,7 +67,11 @@ export async function executarTentativa(job: JobTentativa, numeroDaTentativa = 1
     return { pulado: `opção em ${contextoLinha.situacao}` };
   }
 
-  const chave = `${job.convocacaoId}:${job.canal}:${job.dia}`;
+  // Disparo manual não disputa a chave do dia: o servidor pode testar um canal que
+  // já saiu hoje. A chave vem pronta da API e sobrevive ao retry do BullMQ.
+  const chave = job.manual?.chave ?? `${job.convocacaoId}:${job.canal}:${job.dia}`;
+  const origem = job.manual ? 'manual' : 'auto';
+  const autorId = job.manual?.autorId ?? null;
   const jaExiste = await db.query.tentativa.findFirst({
     where: eq(tentativa.chaveIdempotencia, chave),
   });
@@ -89,13 +93,14 @@ export async function executarTentativa(job: JobTentativa, numeroDaTentativa = 1
 
   if (!destino) {
     await db.insert(tentativa).values({
+      autorId,
       canal: job.canal,
       chaveIdempotencia: chave,
       convocacaoId: job.convocacaoId,
       dia: job.dia,
       executadaEm: new Date(),
       id: id('tent'),
-      origem: 'auto',
+      origem,
       resultado: `sem ${job.canal} cadastrado para a família`,
       status: 'falhou',
     });
@@ -111,13 +116,14 @@ export async function executarTentativa(job: JobTentativa, numeroDaTentativa = 1
   // tomada e o retry não manda a mesma mensagem duas vezes para a família.
   const idTentativa = id('tent');
   await db.insert(tentativa).values({
+    autorId,
     canal: job.canal,
     chaveIdempotencia: chave,
     convocacaoId: job.convocacaoId,
     destino,
     dia: job.dia,
     id: idTentativa,
-    origem: 'auto',
+    origem,
     resultado: `em envio por ${canal.provedor}`,
     status: 'agendada',
   });

@@ -1,5 +1,6 @@
+import { Paginacao } from '@/components/paginacao';
 import { api } from '@/lib/api';
-import { dataHora } from '@/lib/formato';
+import { dataHora, rotuloAcao, rotuloEntidade, valorAuditoria } from '@/lib/formato';
 
 interface Evento {
   acao: string;
@@ -21,12 +22,27 @@ const resumoDiff = (
   }
   const chaves = [...new Set([...Object.keys(antes ?? {}), ...Object.keys(depois ?? {})])];
   return chaves
-    .map((c) => `${c}: ${String(antes?.[c] ?? '—')} → ${String(depois?.[c] ?? '—')}`)
+    .map((c) => `${c}: ${valorAuditoria(antes?.[c])} → ${valorAuditoria(depois?.[c])}`)
     .join(' · ');
 };
 
-export default async function Auditoria() {
-  const eventos = await api<Evento[]>('/api/painel/auditoria?limite=150');
+interface Pagina {
+  eventos: Evento[];
+  pagina: number;
+  porPagina: number;
+  total: number;
+}
+
+export default async function Auditoria({
+  searchParams,
+}: {
+  searchParams: Promise<{ pagina?: string }>;
+}) {
+  const filtros = await searchParams;
+  const dados = await api<Pagina>(
+    `/api/painel/auditoria?pagina=${filtros.pagina ?? '1'}&limite=50`
+  );
+  const { eventos } = dados;
 
   return (
     <>
@@ -53,10 +69,13 @@ export default async function Auditoria() {
                 <tr key={e.id}>
                   <td className="mono">{dataHora(e.criadoEm)}</td>
                   <td>
-                    {e.entidade}
+                    {rotuloEntidade(e.entidade)}
                     <div className="cod">{e.entidadeId}</div>
                   </td>
-                  <td className="mono">{e.acao}</td>
+                  <td>
+                    <div className="nome-linha">{rotuloAcao(e.acao)}</div>
+                    <div className="cod">{e.acao}</div>
+                  </td>
                   <td>{resumoDiff(e.antesJson, e.depoisJson)}</td>
                   <td>{e.motivo ?? '—'}</td>
                 </tr>
@@ -66,7 +85,15 @@ export default async function Auditoria() {
         </div>
         {eventos.length === 0 ? (
           <p className="vazio">Nenhuma mutação registrada. Abra uma vaga ou edite um contato.</p>
-        ) : null}
+        ) : (
+          <Paginacao
+            base="/auditoria"
+            filtros={filtros}
+            pagina={dados.pagina}
+            porPagina={dados.porPagina}
+            total={dados.total}
+          />
+        )}
       </div>
     </>
   );

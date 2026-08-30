@@ -61,11 +61,44 @@
   gap: var(--fv-space-1);
   height: 100vh;
   padding: var(--fv-space-6) var(--fv-space-3);
+  overflow: hidden;
   color: var(--fv-text-on-ink);
   background: var(--fv-ink);
 }
+/* No desktop o menu está sempre aberto: o <details> só recolhe em tela estreita,
+   onde a barra lateral vira faixa no topo em vez de paredão antes do conteúdo. */
+.menu-lateral {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.menu-abrir {
+  display: none;
+  width: 100%;
+}
+.sidebar .menu-conteudo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* A marca fica no alto e o usuário no rodapé; o meio é que rola. Sem isto a
+   lista de unidades empurrava o botão de sair para fora da tela. */
+.sidebar-nav {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--fv-space-1);
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-color: var(--fv-ink-border) transparent;
+  scrollbar-width: thin;
+}
 .brand {
   display: flex;
+  flex-shrink: 0;
   flex-direction: column;
   gap: 2px;
   padding: 0 var(--fv-space-3) var(--fv-space-4);
@@ -121,10 +154,10 @@
 }
 .usuario {
   display: flex;
+  flex-shrink: 0;
   gap: var(--fv-space-2);
   align-items: center;
   padding: var(--fv-space-3);
-  margin-top: auto;
   border-top: 1px solid var(--fv-ink-border);
 }
 .avatar {
@@ -138,6 +171,9 @@
   border-radius: var(--fv-radius-pill);
 }
 .conteudo {
+  /* Item de grid não encolhe abaixo do conteúdo sem isto: a tabela larga
+     esticava a página inteira e a barra lateral ia junto. */
+  min-width: 0;
   max-width: 1240px;
   padding: var(--fv-space-6) var(--fv-space-10);
 }
@@ -167,7 +203,12 @@
 
 /* --- cartões e tabela ------------------------------------------------ */
 .cartao {
+  /* Tabela larga rola dentro do próprio cartão em vez de esticar a página.
+     A dica do "i" se posiciona pela janela, então não é cortada por isto. */
   padding: var(--fv-space-4);
+  /* Tabela larga rola dentro do próprio cartão em vez de esticar a página.
+     A dica do "i" se posiciona pela janela, então não é cortada por isto. */
+  overflow-x: auto;
   background: var(--fv-surface);
   border: 1px solid var(--fv-border);
   border-radius: var(--fv-radius-lg);
@@ -191,7 +232,7 @@
 
 .kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(172px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(172px, 100%), 1fr));
   gap: var(--fv-space-3);
 }
 .kpi {
@@ -200,13 +241,21 @@
   border: 1px solid var(--fv-border);
   border-radius: var(--fv-radius-md);
 }
-.kpi-atencao {
+.kpi-alerta {
   background: var(--fv-danger-soft);
   border-color: var(--fv-danger-soft-border);
 }
+.kpi-alerta .rotulo,
+.kpi-alerta .valor {
+  color: var(--fv-danger);
+}
+.kpi-atencao {
+  background: var(--fv-warn-soft);
+  border-color: var(--fv-warn-soft-border);
+}
 .kpi-atencao .rotulo,
 .kpi-atencao .valor {
-  color: var(--fv-danger);
+  color: var(--fv-warn);
 }
 .kpi .rotulo {
   display: flex;
@@ -314,12 +363,15 @@ td.num {
 }
 
 .badge {
-  display: inline-block;
+  display: inline-flex;
+  gap: 2px;
+  align-items: center;
   padding: 2px 7px;
   margin-right: 4px;
   font: var(--fv-text-label);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  white-space: nowrap;
   border: 1px solid transparent;
   border-radius: var(--fv-radius-sm);
 }
@@ -380,6 +432,13 @@ td.num {
   cursor: not-allowed;
   opacity: 0.55;
 }
+.botao-perigo[disabled],
+.botao-ia[disabled] {
+  color: var(--fv-text-3);
+  background: var(--fv-surface-sunken);
+  border-color: var(--fv-border-strong);
+  opacity: 1;
+}
 .botao-secundario {
   color: var(--fv-text);
   background: var(--fv-surface);
@@ -438,7 +497,7 @@ label {
 }
 .linha-campos {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
   gap: var(--fv-space-3);
 }
 .filtros {
@@ -461,6 +520,20 @@ label {
 }
 .filtros-caixa .filtros {
   margin-bottom: 0;
+}
+
+/* --- disparo manual de mensagem --------------------------------------- */
+.disparo {
+  padding-top: var(--fv-space-3);
+  margin-top: var(--fv-space-4);
+  border-top: 1px solid var(--fv-border);
+}
+.disparo h3 {
+  margin: 0 0 var(--fv-space-1);
+  font-size: 0.95rem;
+}
+.disparo p {
+  margin: 0 0 var(--fv-space-3);
 }
 
 /* --- abas de ação ----------------------------------------------------- */
@@ -489,13 +562,16 @@ label {
 }
 
 .desabilitado {
-  color: var(--fv-text-disabled);
+  color: var(--fv-text-2);
   background: var(--fv-surface-sunken);
+  border: 1px solid var(--fv-border);
 }
 .aviso {
-  padding-left: var(--fv-space-3);
-  color: var(--fv-text-2);
-  border-left: 3px solid var(--fv-warn);
+  padding: 8px 10px;
+  color: var(--fv-warn);
+  background: var(--fv-warn-soft);
+  border: 1px solid var(--fv-warn-soft-border);
+  border-radius: var(--fv-radius-sm);
 }
 .erro {
   font: var(--fv-text-body);
@@ -582,14 +658,69 @@ label {
     grid-template-columns: 1fr;
   }
   .sidebar {
-    position: static;
+    position: sticky;
+    z-index: 20;
     height: auto;
+    max-height: 100vh;
+    padding: var(--fv-space-3) var(--fv-space-4);
+    overflow-y: auto;
+  }
+  .sidebar-nav {
+    flex: none;
+    overflow-y: visible;
+  }
+  .brand {
+    padding-bottom: var(--fv-space-2);
+    margin-bottom: 0;
+  }
+  .menu-abrir {
+    display: flex;
+    gap: var(--fv-space-2);
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px var(--fv-space-3);
+    margin-top: var(--fv-space-2);
+    font: var(--fv-text-label);
+    color: var(--fv-text-on-ink);
+    text-transform: uppercase;
+    letter-spacing: 0.11em;
+    cursor: pointer;
+    background: var(--fv-ink-hover);
+    border: 0;
+    border-radius: var(--fv-radius-sm);
+  }
+  .menu-seta {
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid currentcolor;
+    border-bottom: 2px solid currentcolor;
+    transform: rotate(45deg) translate(-2px, -2px);
+  }
+  .menu-seta[data-aberto="true"] {
+    transform: rotate(-135deg) translate(-2px, -2px);
+  }
+  .sidebar .menu-conteudo[data-aberto="false"] {
+    display: none;
+  }
+  .sidebar .menu-conteudo[data-aberto="true"] {
+    padding-top: var(--fv-space-2);
+  }
+  .usuario {
+    margin-top: var(--fv-space-2);
   }
   .conteudo {
     padding: var(--fv-space-4);
   }
   .grid-ficha {
     grid-template-columns: 1fr;
+  }
+  .grid-ficha > * {
+    min-width: 0;
+  }
+  /* Em tela estreita o evento empilha: hora, canal e texto um sob o outro. */
+  .evento {
+    grid-template-columns: 1fr;
+    gap: 2px;
   }
 }
 
@@ -603,9 +734,34 @@ label {
   width: min(380px, 92vw);
   padding: var(--fv-space-6);
   background: var(--fv-surface);
-  border-top: 4px solid var(--fv-cyan);
   border-radius: var(--fv-radius-lg);
   box-shadow: var(--fv-shadow-overlay);
+}
+/* A assinatura institucional é o mesmo filete da barra lateral, não uma faixa. */
+.marca-filete {
+  display: inline-block;
+  padding-bottom: 5px;
+  border-bottom: 2px solid var(--fv-cyan);
+}
+
+/* --- paginação -------------------------------------------------------- */
+.paginacao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fv-space-3);
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--fv-space-3);
+}
+.paginacao-botoes {
+  display: flex;
+  gap: var(--fv-space-2);
+  align-items: center;
+}
+.desligado {
+  color: var(--fv-text-disabled);
+  cursor: not-allowed;
+  background: var(--fv-surface-sunken);
 }
 
 /* --- explicação por hover -------------------------------------------- */

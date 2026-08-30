@@ -17,8 +17,7 @@ export type Badge =
   | { tipo: 'selecionado_ha'; dias: number }
   | { tipo: 'prazo_vencido'; dias: number }
   | { tipo: 'inconsistencia'; detalhe: string }
-  | { tipo: 'contato_desatualizado'; canais: string[] }
-  | { tipo: 'bairro_diferente'; bairroFamilia: string; bairroUnidade: string };
+  | { tipo: 'contato_desatualizado'; canais: string[] };
 
 export interface LinhaFila {
   alunoAnon: string;
@@ -41,17 +40,28 @@ export interface LinhaFila {
 export interface FiltroFila {
   busca?: string;
   grupamento?: string;
-  limite?: number;
+  pagina?: number;
+  porPagina?: number;
   situacoes?: Situacao[];
   turno?: Turno;
   unidadeId: string;
 }
 
+export interface PaginaDaFila {
+  linhas: LinhaFila[];
+  pagina: number;
+  porPagina: number;
+  total: number;
+}
+
+export const LINHAS_POR_PAGINA = 50;
+
 /**
  * Fila viva de uma unidade: pontuação desc, empate pela inscrição mais antiga.
  * Cada linha já vem com os sinais que a tela precisa mostrar (RF1.4).
+ * Devolve a página pedida e o total, para a tela não esconder o que cortou.
  */
-export async function filaDaUnidade(db: Database, filtro: FiltroFila): Promise<LinhaFila[]> {
+export async function filaDaUnidade(db: Database, filtro: FiltroFila): Promise<PaginaDaFila> {
   const situacoes = filtro.situacoes?.length
     ? filtro.situacoes
     : (['Lista de espera', 'Selecionado', 'Ativo', 'Confirmado'] as Situacao[]);
@@ -70,13 +80,22 @@ export async function filaDaUnidade(db: Database, filtro: FiltroFila): Promise<L
     );
   }
 
+  const porPagina = Math.min(Math.max(filtro.porPagina ?? LINHAS_POR_PAGINA, 1), 200);
+  const [contagem] = await db
+    .select({ total: count() })
+    .from(opcao)
+    .innerJoin(inscricao, eq(opcao.inscricaoId, inscricao.id))
+    .where(and(...condicoes));
+  const total = contagem?.total ?? 0;
+  const ultima = Math.max(1, Math.ceil(total / porPagina));
+  const pagina = Math.min(Math.max(filtro.pagina ?? 1, 1), ultima);
+
   const linhas = await db
     .select({
       alunoAnon: inscricao.alunoAnon,
       bairroFamilia: sql<
         string | null
       >`coalesce(${inscricao.bairroCorrigido}, ${inscricao.bairro})`,
-      bairroUnidade: unidade.bairro,
       canaisSemEntrega: sql<string[] | null>`(
         select array_agg(distinct ${tentativa.canal}) from ${tentativa}
         where ${tentativa.convocacaoId} = ${convocacao.id} and ${tentativa.status} = 'falhou'
@@ -100,12 +119,13 @@ export async function filaDaUnidade(db: Database, filtro: FiltroFila): Promise<L
     .leftJoin(convocacao, and(eq(convocacao.opcaoId, opcao.id), eq(convocacao.status, 'aberta')))
     .where(and(...condicoes))
     .orderBy(desc(inscricao.pontuacaoTotal), asc(inscricao.dataCriacao))
-    .limit(filtro.limite ?? 200);
+    .limit(porPagina)
+    .offset((pagina - 1) * porPagina);
 
   const inconsistentes = await alunosInconsistentes(db);
   const agora = new Date();
 
-  return linhas.map((l) => {
+  const comBadges = linhas.map((l) => {
     const badges: Badge[] = [];
 
     if (l.situacao === 'Selecionado') {
@@ -129,18 +149,6 @@ export async function filaDaUnidade(db: Database, filtro: FiltroFila): Promise<L
       badges.push({ canais: [...l.canaisSemEntrega].sort(), tipo: 'contato_desatualizado' });
     }
 
-    if (
-      l.bairroFamilia &&
-      l.bairroUnidade &&
-      normalizar(l.bairroFamilia) !== normalizar(l.bairroUnidade)
-    ) {
-      badges.push({
-        bairroFamilia: l.bairroFamilia,
-        bairroUnidade: l.bairroUnidade,
-        tipo: 'bairro_diferente',
-      });
-    }
-
     return {
       alunoAnon: l.alunoAnon,
       badges,
@@ -159,14 +167,8 @@ export async function filaDaUnidade(db: Database, filtro: FiltroFila): Promise<L
       turno: l.turno,
     };
   });
-}
 
-function normalizar(texto: string) {
-  return texto
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toUpperCase();
+  return { linhas: comBadges, pagina, porPagina, total };
 }
 
 /**

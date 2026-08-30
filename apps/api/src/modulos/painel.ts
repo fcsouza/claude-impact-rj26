@@ -14,7 +14,7 @@ import {
   visaoDaUnidade,
 } from '@fila-viva/core';
 import { db, eventoAuditoria, unidade } from '@fila-viva/db';
-import { desc, eq } from 'drizzle-orm';
+import { count, desc, eq } from 'drizzle-orm';
 import { Elysia } from 'elysia';
 import { z } from 'zod';
 import { contexto, exigirAutor, exigirUnidade } from '../contexto.ts';
@@ -42,15 +42,20 @@ export const painelRotas = new Elysia({ prefix: '/api/painel' })
         prazos,
         expiradas,
         paradasSemMovimento,
+        contagemUnidades,
       ] = await Promise.all([
         vagasParadas(db, { creId, dias }),
         desempenhoPorUnidade(db, creId),
         ocupacaoPorBairro(db, creId),
-        inconsistencias(db),
+        inconsistencias(db, creId),
         entregaPorCanal(db),
         prazosDoDia(db, creId),
         expiradasSemResposta(db, creId),
         unidadesSemMovimento(db, { creId }),
+        db
+          .select({ total: count() })
+          .from(unidade)
+          .where(creId ? eq(unidade.creId, creId) : undefined),
       ]);
 
       return {
@@ -61,6 +66,7 @@ export const painelRotas = new Elysia({ prefix: '/api/painel' })
         paradas,
         prazos,
         semMovimento: paradasSemMovimento,
+        totalUnidades: Number(contagemUnidades[0]?.total ?? 0),
         unidades,
       };
     },
@@ -102,27 +108,36 @@ export const painelRotas = new Elysia({ prefix: '/api/painel' })
     },
     { params: z.object({ unidadeId: z.string() }), sessao: true }
   )
-  /** Auditoria bruta: quem mexeu no quê, em ordem. */
+  /** Auditoria bruta: quem mexeu no quê, em ordem, uma página por vez. */
   .get(
     '/auditoria',
     async ({ query }) => {
-      const limite = query.limite ? Number(query.limite) : 100;
-      const base = db
+      const porPagina = Math.min(Math.max(Number(query.limite ?? 50), 1), 200);
+      const filtro = query.entidadeId
+        ? eq(eventoAuditoria.entidadeId, query.entidadeId)
+        : undefined;
+
+      const [contagem] = await db.select({ total: count() }).from(eventoAuditoria).where(filtro);
+      const total = contagem?.total ?? 0;
+      const ultima = Math.max(1, Math.ceil(total / porPagina));
+      const pagina = Math.min(Math.max(Number(query.pagina ?? 1), 1), ultima);
+
+      const eventos = await db
         .select()
         .from(eventoAuditoria)
+        .where(filtro)
         .orderBy(desc(eventoAuditoria.criadoEm))
-        .limit(limite);
-      return query.entidadeId
-        ? await db
-            .select()
-            .from(eventoAuditoria)
-            .where(eq(eventoAuditoria.entidadeId, query.entidadeId))
-            .orderBy(desc(eventoAuditoria.criadoEm))
-            .limit(limite)
-        : await base;
+        .limit(porPagina)
+        .offset((pagina - 1) * porPagina);
+
+      return { eventos, pagina, porPagina, total };
     },
     {
-      query: z.object({ entidadeId: z.string().optional(), limite: z.string().optional() }),
+      query: z.object({
+        entidadeId: z.string().optional(),
+        limite: z.string().optional(),
+        pagina: z.string().optional(),
+      }),
       sessao: 'cre',
     }
   );

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Info } from '@/components/info';
+import { Paginacao } from '@/components/paginacao';
 import { PeriodoFiltro } from '@/components/periodo-filtro';
 import { api } from '@/lib/api';
 import {
@@ -16,8 +17,7 @@ type Badge =
   | { tipo: 'selecionado_ha'; dias: number }
   | { tipo: 'prazo_vencido'; dias: number }
   | { tipo: 'inconsistencia'; detalhe: string }
-  | { tipo: 'contato_desatualizado'; canais: string[] }
-  | { tipo: 'bairro_diferente'; bairroFamilia: string; bairroUnidade: string };
+  | { tipo: 'contato_desatualizado'; canais: string[] };
 
 interface Linha {
   alunoAnon: string;
@@ -47,15 +47,19 @@ interface Resposta {
     perdidos: number;
   };
   linhas: Linha[];
+  pagina: number;
   periodo: { ate: string; de: string; nome: 'semana' | 'mes' | 'processo' | 'custom' };
+  porPagina: number;
+  total: number;
   unidade: { escCodigo: string; nome: string; bairro: string | null; creId: number | null } | null;
 }
 
-interface Filtros {
+interface Filtros extends Record<string, string | undefined> {
   ate?: string;
   busca?: string;
   de?: string;
   grupamento?: string;
+  pagina?: string;
   periodo?: string;
   situacao?: string;
   turno?: string;
@@ -91,14 +95,9 @@ const rotuloBadge = (b: Badge) => {
         dica: DICAS.contatoDesatualizado,
         texto: `contato desatualizado: ${b.canais.map((c) => ROTULO_CANAL[c] ?? c).join(', ')}`,
       };
-    case 'bairro_diferente':
-      return {
-        classe: 'badge badge-neutro',
-        dica: `Família em ${b.bairroFamilia}, unidade em ${b.bairroUnidade}.`,
-        texto: 'bairro diferente',
-      };
+    // Sinal que esta versão da tela não conhece: melhor nada do que uma etiqueta vazia.
     default:
-      return { classe: 'badge', dica: '', texto: '' };
+      return null;
   }
 };
 
@@ -207,7 +206,7 @@ export default async function Fila({
 
       <div className="kpis" style={{ marginBottom: 'var(--fv-space-4)' }}>
         {kpis.map((k) => (
-          <div className={k.atencao ? 'kpi kpi-atencao' : 'kpi'} key={k.rotulo}>
+          <div className={k.atencao ? 'kpi kpi-alerta' : 'kpi'} key={k.rotulo}>
             <div className="rotulo">
               {k.rotulo}
               {k.dica ? <Info texto={k.dica} /> : null}
@@ -297,7 +296,7 @@ export default async function Fila({
                 );
                 return (
                   <tr className={alerta ? 'alerta' : undefined} key={linha.opcaoId}>
-                    <td className="num">{indice + 1}</td>
+                    <td className="num">{(dados.pagina - 1) * dados.porPagina + indice + 1}</td>
                     <td>
                       <div className="nome-linha">{linha.nome}</div>
                       <div className="cod">
@@ -324,12 +323,12 @@ export default async function Fila({
                     <td>
                       {linha.badges.map((b) => {
                         const r = rotuloBadge(b);
-                        return (
+                        return r ? (
                           <span className={r.classe} key={`${linha.opcaoId}-${b.tipo}`}>
                             {r.texto}
                             <Info texto={r.dica} />
                           </span>
-                        );
+                        ) : null;
                       })}
                     </td>
                     <td>
@@ -352,9 +351,18 @@ export default async function Fila({
         {dados.linhas.length === 0 ? (
           <p className="vazio">Nenhuma opção com esse filtro.</p>
         ) : (
-          <p className="cod" style={{ marginTop: 'var(--fv-space-3)' }}>
-            {dados.linhas.length} opções · ordenado por pontuação, empate por data de inscrição
-          </p>
+          <>
+            <p className="cod" style={{ marginTop: 'var(--fv-space-3)' }}>
+              ordenado por pontuação, empate por data de inscrição
+            </p>
+            <Paginacao
+              base={`/fila/${unidadeId}`}
+              filtros={filtros}
+              pagina={dados.pagina}
+              porPagina={dados.porPagina}
+              total={dados.total}
+            />
+          </>
         )}
       </div>
     </>

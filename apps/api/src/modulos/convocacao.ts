@@ -5,6 +5,8 @@ import {
   auditar,
   confirmar,
   estenderPrazo,
+  filaTentativas,
+  OPCOES_JOB,
   proximoCandidato,
   SemCandidato,
   transicionar,
@@ -306,6 +308,63 @@ export const convocacaoRotas = new Elysia({ prefix: '/api/convocacoes' })
       return { destinatarios: secretaria.length, ok: envios.every((e) => e.ok) };
     },
     { params: z.object({ convocacaoId: z.string() }), sessao: true }
+  )
+  /**
+   * Dispara agora uma mensagem da convocação pelo canal escolhido, sem esperar a
+   * cadência. Vai pela mesma fila do envio automático — é o caminho real que o
+   * servidor quer testar — e grava tentativa com autor e horário.
+   */
+  .post(
+    '/:convocacaoId/disparar',
+    async ({ params, body, autor }) => {
+      const acesso = await exigirAcessoAConvocacao(exigirAutor(autor), params.convocacaoId);
+      if (acesso.erro === 'negado') {
+        return acesso.resposta;
+      }
+      if (acesso.erro === 'nao-encontrado') {
+        return status(404, PROBLEMAS.naoEncontrado('convocação não encontrada'));
+      }
+
+      const alvo = await db.query.convocacao.findFirst({
+        where: eq(convocacao.id, params.convocacaoId),
+      });
+      if (!alvo) {
+        return status(404, PROBLEMAS.naoEncontrado('convocação não encontrada'));
+      }
+      if (alvo.status !== 'aberta') {
+        return status(409, PROBLEMAS.conflito(`convocação ${alvo.status}: nada a disparar`));
+      }
+
+      // A chave nasce aqui, não no worker: se o envio cair no meio, o retry reencontra
+      // a linha já gravada e não manda a mesma mensagem duas vezes para a família.
+      const chave = `${params.convocacaoId}:${body.canal}:manual:${Date.now()}`;
+      await filaTentativas().add(
+        `${body.canal}-manual`,
+        {
+          canal: body.canal,
+          convocacaoId: params.convocacaoId,
+          dia: 0,
+          manual: { autorId: exigirAutor(autor).id, chave },
+        },
+        { ...OPCOES_JOB, jobId: chave }
+      );
+
+      await auditar(db, {
+        acao: 'disparar_tentativa',
+        autorId: exigirAutor(autor).id,
+        depois: { canal: body.canal, chave },
+        entidade: 'convocacao',
+        entidadeId: params.convocacaoId,
+        motivo: 'disparo manual pela ficha',
+      });
+
+      return { canal: body.canal, chave, enfileirado: true };
+    },
+    {
+      body: z.object({ canal: z.enum(['whatsapp', 'sms', 'email']) }),
+      params: z.object({ convocacaoId: z.string() }),
+      sessao: true,
+    }
   )
   /** Atualiza o status da convocação a partir da ficha, com motivo obrigatório. */
   .post(

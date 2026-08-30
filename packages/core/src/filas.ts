@@ -10,6 +10,11 @@ export interface JobTentativa {
   canal: 'whatsapp' | 'sms' | 'email';
   convocacaoId: string;
   dia: number;
+  /**
+   * Disparo pedido por um servidor na ficha. A chave vem pronta de quem enfileirou:
+   * gerá-la no worker mudaria a cada retry e mandaria a mesma mensagem duas vezes.
+   */
+  manual?: { chave: string; autorId: string };
 }
 
 export interface JobExpirar {
