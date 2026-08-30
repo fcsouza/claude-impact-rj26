@@ -3,14 +3,32 @@ import type { AtualizacaoTentativa, Channel, Mensagem, ResultadoEnvio } from './
 /**
  * SMS pela Comtele. Duas gerações de API convivem e usam nomes diferentes:
  *
- * - `nova` (padrão): `https://api.comtele.com.br/messages/sms/send`, cabeçalho
- *   `x-api-key`, corpo com `receivers` e `message`.
+ * - `nova` (padrão): `https://api.comtele.com.br/messages/sms/batch/send`, cabeçalho
+ *   `x-api-key`, corpo com `messages` e `route`. O envio individual responde sem id,
+ *   então o lote é o único caminho que deixa rastro.
  * - `v2`: `https://sms.comtele.com.br/api/v2/send`, cabeçalho `auth-key`, corpo com
  *   `Receivers`, `Content` e `Sender`.
  *
  * A chave só vale numa delas. `CONTELE_API_VERSAO` escolhe; o padrão é a nova.
  */
 const VERSAO = process.env.CONTELE_API_VERSAO === 'v2' ? 'v2' : 'nova';
+
+/**
+ * Rota da conta na Comtele. Sem ela o envio volta com "a rota informada não está
+ * cadastrada para o usuário". Conferir com:
+ * `curl -H "x-api-key: $CONTELE_API_KEY" https://api.comtele.com.br/routes`.
+ */
+const ROTA = Number.parseInt(process.env.CONTELE_ROUTE_ID ?? '', 10) || 17;
+
+/** Acento vira caractere de 2 bytes no SMS e dobra o custo por mensagem. */
+function semAcento(texto: string): string {
+  return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+/** A Comtele espera só dígitos, com DDI e sem o zero de discagem. */
+function soDigitos(telefone: string): string {
+  return telefone.replace(/\D/g, '').replace(/^0+/, '');
+}
 const BASE =
   process.env.CONTELE_BASE_URL ??
   (VERSAO === 'v2' ? 'https://sms.comtele.com.br/api/v2' : 'https://api.comtele.com.br');
@@ -24,6 +42,7 @@ interface RespostaV2 {
 interface RespostaNova {
   hasError?: boolean;
   message?: string | null;
+  object?: { requestId?: string; credits?: number };
   totalRecords?: number;
 }
 
@@ -100,12 +119,18 @@ export function contele(): Channel {
               { Content: mensagem.texto, Receivers: mensagem.destino, Sender: mensagem.referencia },
             ]
           : [
-              `${BASE}/messages/sms/send`,
+              // O envio individual responde sem id; só o lote deixa rastro para
+              // cruzar com o relatório e com o webhook depois.
+              `${BASE}/messages/sms/batch/send`,
               { 'x-api-key': apiKey },
               {
                 custom: mensagem.referencia,
-                message: mensagem.texto,
-                receivers: [mensagem.destino],
+                messages: [
+                  { message: semAcento(mensagem.texto), receiver: soDigitos(mensagem.destino) },
+                ],
+                route: ROTA,
+                scheduleDate: null,
+                tag: 'fila-viva',
               },
             ];
 
@@ -143,8 +168,8 @@ export function contele(): Channel {
           : {
               ok: true,
               payload: (nova ?? {}) as unknown as Record<string, unknown>,
-              // A API nova não devolve id por mensagem; a referência é o que liga o webhook.
-              providerId: undefined,
+              // O lote devolve requestId; é o que permite cruzar com o relatório depois.
+              providerId: nova?.object?.requestId,
               status: 'enviado',
             };
       } catch (erro) {

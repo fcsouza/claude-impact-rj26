@@ -18,7 +18,9 @@ KAPSO_TEMPLATE_CONVOCACAO=fila_viva_convocacao   # opcional
 
 Fora da janela de 24 horas a Meta só entrega template aprovado. Sem
 `KAPSO_TEMPLATE_CONVOCACAO` o adapter manda texto livre, que só chega se a família
-escreveu para a unidade nas últimas 24 horas. O template de convocação recebe cinco
+escreveu para a unidade nas últimas 24 horas. Em uso está o
+`fila_viva_convocacao_v2`, com os botões "Confirmo a vaga" e "Não quero a vaga" — a
+resposta por botão chega no webhook como texto e segue o mesmo caminho da digitada. O template de convocação recebe cinco
 valores, nesta ordem: nome da criança, unidade, turno, grupamento e prazo.
 
 ### Webhook
@@ -45,9 +47,25 @@ nono dígito, ao DDI e à formatação de cada provedor.
 
 ## SMS (Comtele)
 
-API v2: `POST https://sms.comtele.com.br/api/v2/send`, cabeçalho `auth-key`, corpo com
-`Content`, `Receivers` e `Sender`. O campo `Sender` é o identificador que volta no
-webhook — não é o remetente. A resposta traz `Object.requestUniqueId`.
+Duas gerações de API convivem e a chave só vale numa delas. `CONTELE_API_VERSAO`
+escolhe; o padrão é a nova.
+
+**Nova** (padrão): `POST https://api.comtele.com.br/messages/sms/batch/send`, cabeçalho
+`x-api-key`, corpo com `messages`, `route`, `tag` e `custom`. O envio individual responde
+sem id nenhum — só o lote devolve `object.requestId`, que é o que permite cruzar com o
+relatório depois.
+
+A `route` é obrigatória e é da conta: sem ela o envio volta com "a rota informada não está
+cadastrada para o usuário", que não parece erro de rota faltando. Listar com
+`curl -H "x-api-key: $CONTELE_API_KEY" https://api.comtele.com.br/routes`.
+
+Duas coisas que custam dinheiro: acento vira caractere de 2 bytes e dobra o custo por
+mensagem, então o texto vai sem acento; e o telefone precisa de DDI sem o zero de
+discagem, senão o número não é encontrado.
+
+**v2** (legada): `POST https://sms.comtele.com.br/api/v2/send`, cabeçalho `auth-key`, corpo
+com `Content`, `Receivers` e `Sender`. O `Sender` é o identificador que volta no webhook,
+não o remetente.
 
 O webhook chega em dois formatos: com `ReceivedContent` é resposta da família; sem ele,
 é atualização de status, em `Status`.
@@ -55,6 +73,7 @@ O webhook chega em dois formatos: com `ReceivedContent` é resposta da família;
 ```
 CANAL_SMS=contele
 CONTELE_API_KEY=...
+CONTELE_ROUTE_ID=17
 ```
 
 ## E-mail (Resend)
