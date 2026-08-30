@@ -34,7 +34,7 @@ export default function Login() {
     <main className="login">
       <form className="login-cartao" onSubmit={entrar}>
         <div style={{ marginBottom: 'var(--fv-space-6)' }}>
-          <div className="eyebrow" style={{ color: 'var(--fv-primary)' }}>
+          <div className="eyebrow marca-filete" style={{ color: 'var(--fv-primary)' }}>
             Prefeitura do Rio de Janeiro
           </div>
           <h1 style={{ marginTop: 4 }}>Fila Viva</h1>

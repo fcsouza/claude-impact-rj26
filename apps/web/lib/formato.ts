@@ -83,8 +83,12 @@ export const DICAS = {
     'A mensagem enviada por este canal não foi entregue. Atualize o contato da família antes da próxima tentativa.',
   convocados:
     'Alunos que receberam contato automático da escola para preenchimento da vaga, com prazo de 3 dias úteis para matrícula.',
+  diaDaRegua:
+    'Dia da cadência de contato desde a convocação: D0 é WhatsApp, D1 WhatsApp e SMS, D2 SMS e e-mail.',
   estadoDuplo:
     'Uma opção deste cadastro está "Selecionada" enquanto outra segue em "Lista de espera" — verificar antes de agir.',
+  leituraIa:
+    'Leitura da resposta feita por Claude, com o trecho que a sustenta. Nenhuma situação muda por conta dela — quem aplica é o servidor.',
   matriculados: 'Número de alunos que efetivaram a matrícula após a convocação.',
   pontuacao:
     'Soma dos pesos dos critérios socioeconômicos respondidos na inscrição, conforme a régua vigente daquele processo. Os pesos mudam a cada ano — não compare pontuações de processos diferentes diretamente.',
@@ -115,4 +119,118 @@ export function dicaSituacao(situacao: string): string {
     default:
       return situacao;
   }
+}
+
+/** Ação de auditoria em português. O banco grava `situacao:abrir_vaga`; a tela lê gente. */
+export function rotuloAcao(acao: string): string {
+  const mapa: Record<string, string> = {
+    abrir_vaga: 'Vaga aberta',
+    contato: 'Contato atualizado',
+    extensao_prazo: 'Prazo estendido',
+    nota: 'Nota registrada',
+    notificar_secretaria: 'Secretaria avisada',
+    'situacao:abrir_vaga': 'Criança convocada',
+    'situacao:confirmado_em_outra_opcao': 'Cancelada por matrícula em outra unidade',
+    'situacao:desistiu': 'Cancelada por desistência',
+    'situacao:manual': 'Situação mudada à mão',
+    'situacao:nao_localizado': 'Cancelada por falta de contato',
+    'situacao:prazo_vencido': 'Cancelada pelo prazo',
+    'situacao:resposta_sim': 'Confirmada pela família',
+  };
+  return mapa[acao] ?? acao.replace(/[:_]/g, ' ');
+}
+
+/** Entidade de auditoria em português. */
+export function rotuloEntidade(entidade: string): string {
+  const mapa: Record<string, string> = {
+    contato: 'contato',
+    convocacao: 'convocação',
+    inscricao: 'inscrição',
+    nota: 'nota',
+    opcao: 'opção na unidade',
+  };
+  return mapa[entidade] ?? entidade;
+}
+
+/** Leitura da IA sobre a resposta da família. */
+export function rotuloClassificacao(classificacao: string): string {
+  const mapa: Record<string, string> = {
+    confirma: 'confirma a vaga',
+    desiste: 'desiste da vaga',
+    duvida: 'tem dúvida',
+    extensao: 'pede mais prazo',
+    outro: 'outro assunto',
+  };
+  return mapa[classificacao] ?? classificacao;
+}
+
+const DATA_ISO = /^\d{4}-\d{2}-\d{2}T/;
+
+/**
+ * Valor de auditoria legível: data ISO vira data e hora, situação vira o rótulo
+ * da tela, o resto passa direto.
+ */
+export function valorAuditoria(valor: unknown): string {
+  if (valor === null || valor === undefined) {
+    return '—';
+  }
+  const texto = String(valor);
+  if (DATA_ISO.test(texto)) {
+    return dataHora(texto);
+  }
+  return rotuloSituacao(texto);
+}
+
+/** Recorte de uma lista já carregada, com o total preservado para a paginação. */
+export function paginar<T>(itens: T[], pagina: string | undefined, porPagina: number) {
+  const ultima = Math.max(1, Math.ceil(itens.length / porPagina));
+  const atual = Math.min(Math.max(Number(pagina ?? 1) || 1, 1), ultima);
+  return {
+    itens: itens.slice((atual - 1) * porPagina, atual * porPagina),
+    pagina: atual,
+    porPagina,
+    total: itens.length,
+  };
+}
+
+/** Abaixo disto a taxa vira fração: 100% de duas convocações não é tendência. */
+export const AMOSTRA_MINIMA = 10;
+
+/**
+ * Taxa com a amostra à vista. Devolve o percentual quando há caso suficiente,
+ * a fração quando a amostra é pequena, e traço quando não houve nada.
+ */
+export function taxa(numerador: number, denominador: number) {
+  if (denominador === 0) {
+    return { fraca: false, texto: '—' };
+  }
+  if (denominador < AMOSTRA_MINIMA) {
+    return { fraca: true, texto: `${numero(numerador)} de ${numero(denominador)}` };
+  }
+  return { fraca: false, texto: percentual(numerador / denominador) };
+}
+
+/** Faixa de alarme de um indicador que deveria estar alto, como entrega de canal. */
+export function alarmeDeEntrega(entregues: number, tentativas: number) {
+  if (tentativas < AMOSTRA_MINIMA) {
+    return;
+  }
+  const proporcao = entregues / tentativas;
+  if (proporcao < 0.7) {
+    return 'kpi-alerta';
+  }
+  return proporcao < 0.9 ? 'kpi-atencao' : undefined;
+}
+
+/**
+ * Valor que se repete em toda a lista, se houver. Coluna com um valor só não
+ * informa nada por linha: o fato pertence ao título da seção.
+ */
+export function valorRepetido<T>(itens: T[], ler: (item: T) => string): string | null {
+  const [primeiro] = itens;
+  if (itens.length < 2 || primeiro === undefined) {
+    return null;
+  }
+  const referencia = ler(primeiro);
+  return itens.every((item) => ler(item) === referencia) ? referencia : null;
 }

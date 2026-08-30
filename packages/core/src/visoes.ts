@@ -40,7 +40,7 @@ export interface LinhaCre {
   nome: string;
   paradas: number;
   selecionadas: number;
-  taxaConfirmacao: number;
+  taxaConfirmacao: number | null;
   unidades: number;
 }
 
@@ -132,7 +132,8 @@ export async function redePorCre(db: Database, dias = 2): Promise<LinhaCre[]> {
         nome: f.nome,
         paradas: porCre.get(f.creId) ?? 0,
         selecionadas: Number(f.selecionadas ?? 0),
-        taxaConfirmacao: total ? Number(decididas?.confirmadas ?? 0) / total : 0,
+        // Sem convocação encerrada não existe taxa. Zero por cento seria mentira.
+        taxaConfirmacao: total ? Number(decididas?.confirmadas ?? 0) / total : null,
         unidades: Number(f.unidades ?? 0),
       };
     })

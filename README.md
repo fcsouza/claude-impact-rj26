@@ -79,6 +79,30 @@ seguinte.
 
 Com tudo de pé: front em http://localhost:3000, API em http://localhost:3333.
 
+### Skills de design e frontend
+
+Opcional, para quem programa com agente. Instala em `.agents/skills`, fora do
+versionamento:
+
+```bash
+bunx skills add vercel-labs/agent-skills   # React, Next.js e o guia de interface da Vercel
+bunx skills add pbakaus/impeccable         # revisão de design: polir, criticar, tirar ruído
+bunx skills add emilkowalski/skill         # animação e acabamento de interface
+bunx skills add anthropics/skills          # frontend-design e utilidades
+bunx skills add https://github.com/Leonxlnx/taste-skill --skill "design-taste-frontend"
+bunx skills remove brand-guidelines docx pptx xlsx pdf slack-gif-creator write-swift \
+  animate-expo vercel-react-native-skills deploy-to-vercel vercel-cli-with-tokens \
+  vercel-optimize algorithmic-art canvas-design academy-guide internal-comms \
+  template-skill mcp-builder theme-factory ask-sonner web-artifacts-builder \
+  discernment-nudge doc-coauthoring
+```
+
+O CLI instala repositório inteiro, então a última linha tira o que não serve aqui:
+arquivos de escritório, mobile, Swift, deploy na Vercel e o `brand-guidelines`, que
+aplica a marca da Anthropic — o oposto da paleta da Prefeitura que o app usa.
+
+`bunx skills list` mostra o que está instalado, `bunx skills update` atualiza.
+
 ### Docker
 
 ```bash

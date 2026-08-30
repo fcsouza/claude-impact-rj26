@@ -1,6 +1,18 @@
 import Link from 'next/link';
+import { Info } from '@/components/info';
+import { Paginacao } from '@/components/paginacao';
 import { api } from '@/lib/api';
-import { data, dataHora, numero, percentual, prazo } from '@/lib/formato';
+import {
+  DICAS,
+  data,
+  dataHora,
+  numero,
+  paginar,
+  percentual,
+  prazo,
+  rotuloClassificacao,
+  valorRepetido,
+} from '@/lib/formato';
 
 interface VisaoUnidade {
   capacidades: {
@@ -46,11 +58,18 @@ interface VisaoUnidade {
 
 export default async function PainelUnidade({
   params,
+  searchParams,
 }: {
   params: Promise<{ unidadeId: string }>;
+  searchParams: Promise<{ pc?: string }>;
 }) {
   const { unidadeId } = await params;
+  const filtros = await searchParams;
   const p = await api<VisaoUnidade>(`/api/painel/unidade/${unidadeId}`);
+  const contatos = paginar(p.contatosVelhos, filtros.pc, 15);
+  const idadeDoContato = (c: { meses: number | null }) =>
+    c.meses === null ? 'sem registro' : `há ${c.meses} meses`;
+  const contatoIgual = valorRepetido(p.contatosVelhos, idadeDoContato);
 
   const vencendo = p.convocacoes.filter(
     (c) => c.vencido || new Date(c.prazoFim).toDateString() === new Date().toDateString()
@@ -109,7 +128,10 @@ export default async function PainelUnidade({
             <thead>
               <tr>
                 <th>Criança</th>
-                <th style={{ width: 110 }}>Dia</th>
+                <th style={{ width: 110 }}>
+                  Dia
+                  <Info texto={DICAS.diaDaRegua} />
+                </th>
                 <th style={{ width: 130 }}>Prazo</th>
                 <th style={{ textAlign: 'right', width: 120 }}>Tentativas</th>
                 <th style={{ width: 90 }}>Ação</th>
@@ -131,11 +153,11 @@ export default async function PainelUnidade({
                     <td className="num">
                       {c.tentativas}
                       <div className="cod" style={{ textAlign: 'right' }}>
-                        {c.respostas} resposta(s)
+                        {c.respostas === 1 ? '1 resposta' : `${c.respostas} respostas`}
                       </div>
                     </td>
                     <td>
-                      <Link href={`/ficha/${c.inscricaoId}`}>Ver ficha</Link>
+                      <Link href={`/ficha/${c.inscricaoId}`}>Abrir ficha</Link>
                     </td>
                   </tr>
                 );
@@ -170,14 +192,19 @@ export default async function PainelUnidade({
                   <td>{m.trechoChave ?? m.texto.slice(0, 90)}</td>
                   <td>
                     {m.classificacao ? (
-                      <span className="badge badge-aviso">{m.classificacao}</span>
+                      <span className="termo">
+                        <span className="badge badge-ia">
+                          {rotuloClassificacao(m.classificacao)}
+                        </span>
+                        <Info texto={DICAS.leituraIa} />
+                      </span>
                     ) : (
                       '—'
                     )}
                   </td>
                   <td className="mono">{dataHora(m.recebidaEm)}</td>
                   <td>
-                    <Link href={`/ficha/${m.inscricaoId}`}>Abrir</Link>
+                    <Link href={`/ficha/${m.inscricaoId}`}>Abrir ficha</Link>
                   </td>
                 </tr>
               ))}
@@ -217,7 +244,10 @@ export default async function PainelUnidade({
       <div className="cartao">
         <div className="cartao-titulo">
           <h2>Contato velho na frente da fila</h2>
-          <span className="cod">corrigir antes de convocar</span>
+          <span className="cod">
+            corrigir antes de convocar
+            {contatoIgual ? ` · ${contatoIgual} em todas` : ''}
+          </span>
         </div>
         {p.contatosVelhos.length === 0 ? (
           <p className="vazio">Nenhum contato desatualizado entre os próximos da fila.</p>
@@ -226,12 +256,12 @@ export default async function PainelUnidade({
             <thead>
               <tr>
                 <th>Criança</th>
-                <th style={{ width: 160 }}>Último contato</th>
-                <th style={{ width: 90 }}>Ação</th>
+                {contatoIgual ? null : <th style={{ width: 160 }}>Último contato</th>}
+                <th style={{ width: 140 }}>Ação</th>
               </tr>
             </thead>
             <tbody>
-              {p.contatosVelhos.map((c) => (
+              {contatos.itens.map((c) => (
                 <tr key={c.inscricaoId}>
                   <td>
                     <div className="nome-linha">{c.nome}</div>
@@ -239,15 +269,25 @@ export default async function PainelUnidade({
                       {c.grupamento} · {c.turno}
                     </div>
                   </td>
-                  <td>{c.meses === null ? 'sem registro' : `há ${c.meses} meses`}</td>
+                  {contatoIgual ? null : <td>{idadeDoContato(c)}</td>}
                   <td>
-                    <Link href={`/ficha/${c.inscricaoId}`}>Atualizar</Link>
+                    <Link href={`/ficha/${c.inscricaoId}?aba=contato`}>Atualizar contato</Link>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
+        {p.contatosVelhos.length > 0 ? (
+          <Paginacao
+            base={`/unidade/${unidadeId}`}
+            filtros={filtros}
+            pagina={contatos.pagina}
+            param="pc"
+            porPagina={contatos.porPagina}
+            total={contatos.total}
+          />
+        ) : null}
       </div>
 
       <div className="cartao">
