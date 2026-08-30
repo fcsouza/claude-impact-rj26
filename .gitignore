@@ -12,3 +12,4 @@ docker-compose.override.yml
 packages/db/.seed-cache/
 .dados/
 dump.rdb
+.claude/worktrees/
