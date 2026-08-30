@@ -47,8 +47,8 @@ gera nomes fictícios em português e aponta os contatos para os telefones em
 `SEED_TELEFONES`. Ele também deixa uma convocação vencida e uma inconsistência prontas
 para a demonstração.
 
-Usuários criados: `unidade1@filaviva.rio`, `unidade2@filaviva.rio`, `cre@filaviva.rio` e
-`secretaria@filaviva.rio`, senha `filaviva2026`.
+Usuários criados: um por nível, senha `filaviva2026` em todos. Estão na tabela da seção
+seguinte.
 
 Com tudo de pé: front em http://localhost:3000, API em http://localhost:3333.
 
@@ -77,6 +77,45 @@ domínio próprio e a rede `dokploy-network`.
 
 Segredos do Actions: `DOKPLOY_URL`, `DOKPLOY_API_KEY` e `DOKPLOY_COMPOSE_ID`.
 As variáveis da aplicação ficam no próprio compose, no painel do Dokploy.
+
+## Como testar
+
+Quatro contas, uma por nível de acesso. A senha é `filaviva2026` nas quatro. Elas existem
+tanto no seed local quanto no staging.
+
+| Entre como | E-mail | O que ele vê |
+| --- | --- | --- |
+| Secretaria | `secretaria@filaviva.rio` | a rede inteira, as 12 CREs lado a lado |
+| CRE | `cre@filaviva.rio` | as unidades da 7ª CRE |
+| Diretor | `unidade1@filaviva.rio` | CM Rio Novo — Rio das Pedras |
+| Diretor | `unidade2@filaviva.rio` | EDI Clarice Lispector — Itanhangá |
+
+O caminho mais curto para ver as três visões, em ordem:
+
+1. Entre como **Secretaria**. A home cai em `/secretaria`. A tabela traz as 12
+   coordenadorias ordenadas pela fila. Repare na coluna Confirmação: ela é calculada
+   sobre convocação encerrada, não sobre quem ainda está com o prazo correndo.
+2. Clique em **Painel de gargalos**. É a mesma tela da CRE, agora sobre a rede inteira:
+   prazos vencendo hoje, unidades sem movimento e convocação que expirou sem ninguém
+   responder. Clicar no nome de uma unidade leva ao dia dela.
+3. Saia e entre como **CRE**. A mesma tela, recortada na 7ª CRE. Troque o código na URL
+   por uma unidade de outro polo: a API devolve 403.
+4. Saia e entre como **unidade1**. A home cai em `/unidade/0716609`, o dia da creche:
+   convocação com dia da régua e prazo, resposta esperando decisão e contato velho na
+   frente da fila. Nenhuma comparação com outras unidades — quem cobra é a CRE.
+
+Duas ressalvas sobre o que você vai ver no staging.
+
+O seed carrega um polo só, então **onze das doze CREs aparecem zeradas**. A fila viva
+inteira está na 7ª, com cerca de 2,9 mil crianças esperando, a maior parte em Maternal II.
+É o desenho do seed, não um erro de contagem.
+
+As colunas de ocupação e déficit por bairro aparecem com traço: elas dependem da carga de
+capacidade do datalake, descrita adiante, que ainda não foi rodada.
+
+O staging fica em `https://filaviva.pulsolab.com.br` e só serve as três visões depois que
+esta branch entrar na `main` — o deploy sai automático a partir dali. As quatro contas já
+existem lá.
 
 ## As três visões
 
