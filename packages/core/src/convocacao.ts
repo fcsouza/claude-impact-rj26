@@ -370,3 +370,74 @@ export async function tentativasDaConvocacao(db: Database, convocacaoId: string)
     .where(eq(tentativa.convocacaoId, convocacaoId))
     .orderBy(asc(tentativa.executadaEm));
 }
+
+/** Situações que o servidor pode gravar à mão na tela da ficha. */
+export type SituacaoManual = 'Ativo' | 'Confirmado' | 'Cancelado' | 'Cancelado pelo sistema';
+
+const STATUS_DA_CONVOCACAO: Record<SituacaoManual, 'cancelada' | 'confirmada' | 'expirada'> = {
+  Ativo: 'confirmada',
+  Cancelado: 'cancelada',
+  'Cancelado pelo sistema': 'expirada',
+  Confirmado: 'confirmada',
+};
+
+/**
+ * Atualiza o status da convocação a partir da ficha: transiciona a opção, encerra a
+ * convocação aberta e, quando a criança fica na unidade, cancela as demais opções do
+ * cadastro. Sem isso o worker seguiria disparando tentativa de uma convocação já decidida.
+ */
+export async function atualizarStatusDaConvocacao(
+  db: Database,
+  args: {
+    autorId?: string | null;
+    justificativa: string;
+    motivo: 'manual' | 'desistiu' | 'nao_localizado' | 'prazo_vencido';
+    opcaoId: string;
+    para: SituacaoManual;
+  }
+) {
+  const alvo = await db.query.opcao.findFirst({ where: eq(opcao.id, args.opcaoId) });
+  if (!alvo) {
+    throw new Error(`opção ${args.opcaoId} não encontrada`);
+  }
+
+  await transicionar(db, {
+    autorId: args.autorId,
+    justificativa: args.justificativa,
+    motivo: args.motivo,
+    opcaoId: args.opcaoId,
+    para: args.para,
+  });
+
+  let opcoesCanceladas = 0;
+  if (args.para === 'Confirmado' || args.para === 'Ativo') {
+    const irmas = await db
+      .select({ id: opcao.id })
+      .from(opcao)
+      .where(
+        and(
+          eq(opcao.inscricaoId, alvo.inscricaoId),
+          ne(opcao.id, alvo.id),
+          inArray(opcao.situacao, ['Lista de espera', 'Selecionado'])
+        )
+      );
+    for (const irma of irmas) {
+      // biome-ignore lint/performance/noAwaitInLoops: cada cancelamento grava sua própria auditoria
+      await transicionar(db, {
+        autorId: args.autorId,
+        motivo: 'confirmado_em_outra_opcao',
+        opcaoId: irma.id,
+        para: 'Cancelado na confirmacao',
+      });
+    }
+    opcoesCanceladas = irmas.length;
+  }
+
+  const encerradas = await db
+    .update(convocacao)
+    .set({ encerradaEm: new Date(), status: STATUS_DA_CONVOCACAO[args.para] })
+    .where(and(eq(convocacao.opcaoId, args.opcaoId), eq(convocacao.status, 'aberta')))
+    .returning({ id: convocacao.id });
+
+  return { convocacoesEncerradas: encerradas.length, opcoesCanceladas };
+}

@@ -3,10 +3,11 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import {
+  atualizarStatus,
   cancelarConvocacao,
   confirmarVaga,
   estenderPrazo,
-  mudarSituacao,
+  notificarSecretaria,
   registrarTentativaManual,
   salvarContato,
   salvarNota,
@@ -24,19 +25,45 @@ type Contato = {
 
 type Aba = 'resposta' | 'contato' | 'tentativa' | 'nota' | 'situacao';
 
+/** Cada opção do dropdown já carrega para onde a máquina de estados leva a opção. */
+const STATUS = [
+  { motivo: 'manual', para: 'Ativo', rotulo: 'Matriculado', valor: 'matriculado' },
+  {
+    motivo: 'desistiu',
+    para: 'Cancelado',
+    rotulo: 'Cancelado (sem interesse)',
+    valor: 'sem_interesse',
+  },
+  {
+    motivo: 'prazo_vencido',
+    para: 'Cancelado pelo sistema',
+    rotulo: 'Cancelado (prazo expirado)',
+    valor: 'prazo_expirado',
+  },
+  {
+    motivo: 'nao_localizado',
+    para: 'Cancelado',
+    rotulo: 'Contato sem retorno',
+    valor: 'sem_retorno',
+  },
+  { motivo: 'manual', para: 'Cancelado', rotulo: 'Outro', valor: 'outro' },
+] as const;
+
 export function AcoesFicha({
   inscricaoId,
   opcaoId,
   convocacaoId,
   contato,
+  abaInicial = 'resposta',
 }: {
   inscricaoId: string;
   opcaoId: string;
   convocacaoId: string | null;
   contato: Contato;
+  abaInicial?: Aba;
 }) {
   const router = useRouter();
-  const [aba, setAba] = useState<Aba>('resposta');
+  const [aba, setAba] = useState<Aba>(abaInicial);
   const [aviso, setAviso] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
@@ -59,7 +86,7 @@ export function AcoesFicha({
   const [texto, setTexto] = useState('');
   const [justificativa, setJustificativa] = useState('');
   const [nota, setNota] = useState('');
-  const [novaSituacao, setNovaSituacao] = useState('Confirmado');
+  const [novoStatus, setNovoStatus] = useState<string>(STATUS[0].valor);
   const [canal, setCanal] = useState('telefone');
   const [resultado, setResultado] = useState('');
   const [form, setForm] = useState({
@@ -75,7 +102,7 @@ export function AcoesFicha({
     { chave: 'contato', rotulo: 'Contato' },
     { chave: 'tentativa', rotulo: 'Tentativa manual' },
     { chave: 'nota', rotulo: 'Nota' },
-    { chave: 'situacao', rotulo: 'Mudar situação' },
+    { chave: 'situacao', rotulo: 'Atualizar status da convocação' },
   ];
 
   return (
@@ -114,6 +141,18 @@ export function AcoesFicha({
                   type="button"
                 >
                   Confirmou a vaga
+                </button>
+                <button
+                  className="botao botao-secundario"
+                  disabled={pendente}
+                  onClick={() =>
+                    executar('E-mail enviado: a secretaria vai ligar para o responsável.', () =>
+                      notificarSecretaria(convocacaoId, inscricaoId)
+                    )
+                  }
+                  type="button"
+                >
+                  Notificar secretaria
                 </button>
                 <button
                   className="botao botao-perigo"
@@ -318,15 +357,17 @@ export function AcoesFicha({
         <div>
           <div className="linha-campos">
             <div className="campo">
-              <label htmlFor="situacao-nova">Nova situação</label>
+              <label htmlFor="status-novo">Novo status</label>
               <select
-                id="situacao-nova"
-                onChange={(e) => setNovaSituacao(e.target.value)}
-                value={novaSituacao}
+                id="status-novo"
+                onChange={(e) => setNovoStatus(e.target.value)}
+                value={novoStatus}
               >
-                <option value="Selecionado">Convocado</option>
-                <option value="Confirmado">Confirmado</option>
-                <option value="Cancelado">Cancelado</option>
+                {STATUS.map((s) => (
+                  <option key={s.valor} value={s.valor}>
+                    {s.rotulo}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="campo" style={{ flex: 1 }}>
@@ -334,6 +375,9 @@ export function AcoesFicha({
               <input
                 id="motivo-situacao"
                 onChange={(e) => setJustificativa(e.target.value)}
+                placeholder={
+                  novoStatus === 'outro' ? 'descreva o que aconteceu' : 'o que a família informou'
+                }
                 type="text"
                 value={justificativa}
               />
@@ -342,17 +386,25 @@ export function AcoesFicha({
           <button
             className="botao"
             disabled={pendente || justificativa.trim().length < 3}
-            onClick={() =>
-              executar('Situação alterada.', () =>
-                mudarSituacao({ inscricaoId, justificativa, opcaoId, para: novaSituacao })
-              )
-            }
+            onClick={() => {
+              const escolha = STATUS.find((s) => s.valor === novoStatus) ?? STATUS[0];
+              executar('Status da convocação atualizado.', () =>
+                atualizarStatus({
+                  inscricaoId,
+                  justificativa,
+                  motivo: escolha.motivo,
+                  opcaoId,
+                  para: escolha.para,
+                })
+              );
+            }}
             type="button"
           >
             Aplicar mudança
           </button>
           <p className="cod" style={{ marginTop: 8 }}>
-            A máquina de estados recusa transição fora das arestas permitidas.
+            A máquina de estados recusa transição fora das arestas permitidas. A convocação aberta é
+            encerrada junto.
           </p>
         </div>
       ) : null}

@@ -1,15 +1,15 @@
 import {
-  contato,
   convocacao,
   type Database,
   inscricao,
   opcao,
   type Situacao,
   type Turno,
+  tentativa,
   unidade,
 } from '@fila-viva/db';
-import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
-import { diasCorridosDesde } from './dias-uteis.ts';
+import { and, asc, between, count, desc, eq, inArray, lte, sql } from 'drizzle-orm';
+import { diaISO, diasCorridosDesde } from './dias-uteis.ts';
 
 export const GRUPAMENTOS = ['Berçário', 'Maternal I', 'Maternal II'] as const;
 
@@ -17,10 +17,8 @@ export type Badge =
   | { tipo: 'selecionado_ha'; dias: number }
   | { tipo: 'prazo_vencido'; dias: number }
   | { tipo: 'inconsistencia'; detalhe: string }
-  | { tipo: 'contato_desatualizado'; meses: number }
+  | { tipo: 'contato_desatualizado'; canais: string[] }
   | { tipo: 'bairro_diferente'; bairroFamilia: string; bairroUnidade: string };
-
-const MESES_ATE_CONTATO_ENVELHECER = 12;
 
 export interface LinhaFila {
   alunoAnon: string;
@@ -79,8 +77,9 @@ export async function filaDaUnidade(db: Database, filtro: FiltroFila): Promise<L
         string | null
       >`coalesce(${inscricao.bairroCorrigido}, ${inscricao.bairro})`,
       bairroUnidade: unidade.bairro,
-      contatoEm: sql<Date | null>`(
-        select max(${contato.criadoEm}) from ${contato} where ${contato.inscricaoId} = ${inscricao.id}
+      canaisSemEntrega: sql<string[] | null>`(
+        select array_agg(distinct ${tentativa.canal}) from ${tentativa}
+        where ${tentativa.convocacaoId} = ${convocacao.id} and ${tentativa.status} = 'falhou'
       )`,
       convocacaoId: convocacao.id,
       dataCriacao: inscricao.dataCriacao,
@@ -124,11 +123,10 @@ export async function filaDaUnidade(db: Database, filtro: FiltroFila): Promise<L
       });
     }
 
-    if (l.contatoEm) {
-      const meses = Math.floor(diasCorridosDesde(new Date(l.contatoEm), agora) / 30);
-      if (meses >= MESES_ATE_CONTATO_ENVELHECER) {
-        badges.push({ meses, tipo: 'contato_desatualizado' });
-      }
+    // Contato desatualizado é falha de entrega, não idade do cadastro: o badge
+    // aponta o canal por onde a mensagem não chegou.
+    if (l.canaisSemEntrega?.length) {
+      badges.push({ canais: [...l.canaisSemEntrega].sort(), tipo: 'contato_desatualizado' });
     }
 
     if (
@@ -207,12 +205,128 @@ export async function alunosInconsistentes(db: Database): Promise<Set<string>> {
   );
 }
 
-export async function resumoDaUnidade(db: Database, unidadeId: string) {
-  const linhas = await db
+export type NomePeriodo = 'semana' | 'mes' | 'processo' | 'custom';
+
+export interface Periodo {
+  ate: Date;
+  de: Date;
+  nome: NomePeriodo;
+}
+
+const DIAS_POR_PERIODO: Record<'semana' | 'mes', number> = { mes: 30, semana: 7 };
+
+/** Início do processo em curso; a régua vigente é a de 2025. */
+const INICIO_DO_PROCESSO = new Date('2025-01-01T00:00:00-03:00');
+
+const DATA_ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Resolve o filtro da tela num intervalo fechado, sempre no fuso do Rio. */
+export function resolverPeriodo(
+  entrada: { periodo?: string; de?: string; ate?: string },
+  agora = new Date()
+): Periodo {
+  const fim = fimDoDia(agora);
+
+  if (entrada.periodo === 'processo') {
+    return { ate: fim, de: INICIO_DO_PROCESSO, nome: 'processo' };
+  }
+  if (
+    entrada.periodo === 'custom' &&
+    DATA_ISO.test(entrada.de ?? '') &&
+    DATA_ISO.test(entrada.ate ?? '')
+  ) {
+    return {
+      ate: new Date(`${entrada.ate}T23:59:59-03:00`),
+      de: new Date(`${entrada.de}T00:00:00-03:00`),
+      nome: 'custom',
+    };
+  }
+
+  const nome = entrada.periodo === 'semana' ? 'semana' : 'mes';
+  return { ate: fim, de: new Date(fim.getTime() - DIAS_POR_PERIODO[nome] * 86_400_000), nome };
+}
+
+export function fimDoDia(agora = new Date()): Date {
+  return new Date(`${diaISO(agora)}T23:59:59-03:00`);
+}
+
+export const ROTULO_PERIODO: Record<NomePeriodo, string> = {
+  custom: 'no período escolhido',
+  mes: 'no último mês',
+  processo: 'no processo',
+  semana: 'na última semana',
+};
+
+export interface KpisFila {
+  acaoHoje: number;
+  confirmados: number;
+  convocados: number;
+  fila: number;
+  matriculados: number;
+  perdidos: number;
+}
+
+/**
+ * Cartões do topo da fila. Os três do período contam pela data da convocação —
+ * é ela que marca o início dos três dias úteis de prazo.
+ */
+export async function kpisDaUnidade(
+  db: Database,
+  unidadeId: string,
+  periodo: Periodo
+): Promise<KpisFila> {
+  const noPeriodo = and(
+    eq(opcao.unidadeId, unidadeId),
+    between(convocacao.iniciadaEm, periodo.de, periodo.ate)
+  );
+
+  const contarConvocacoes = async (extra: ReturnType<typeof and>) => {
+    const [linha] = await db
+      .select({ total: count() })
+      .from(convocacao)
+      .innerJoin(opcao, eq(convocacao.opcaoId, opcao.id))
+      .where(and(noPeriodo, extra));
+    return linha?.total ?? 0;
+  };
+
+  const porSituacao = await db
     .select({ situacao: opcao.situacao, total: count() })
     .from(opcao)
-    .where(eq(opcao.unidadeId, unidadeId))
+    .where(
+      and(
+        eq(opcao.unidadeId, unidadeId),
+        inArray(opcao.situacao, ['Lista de espera', 'Selecionado'])
+      )
+    )
     .groupBy(opcao.situacao);
 
-  return Object.fromEntries(linhas.map((l) => [l.situacao, l.total])) as Record<Situacao, number>;
+  const [acao] = await db
+    .select({ total: count() })
+    .from(convocacao)
+    .innerJoin(opcao, eq(convocacao.opcaoId, opcao.id))
+    .where(
+      and(
+        eq(opcao.unidadeId, unidadeId),
+        eq(convocacao.status, 'aberta'),
+        lte(convocacao.prazoFim, fimDoDia())
+      )
+    );
+
+  const [confirmados, matriculados, perdidos] = await Promise.all([
+    contarConvocacoes(eq(convocacao.status, 'confirmada')),
+    contarConvocacoes(eq(opcao.situacao, 'Ativo')),
+    contarConvocacoes(eq(convocacao.status, 'expirada')),
+  ]);
+
+  const total = (situacao: Situacao) =>
+    porSituacao.find((l) => l.situacao === situacao)?.total ?? 0;
+
+  return {
+    acaoHoje: acao?.total ?? 0,
+    confirmados,
+    convocados: total('Selecionado'),
+    fila: total('Lista de espera'),
+    matriculados,
+    perdidos,
+  };
 }

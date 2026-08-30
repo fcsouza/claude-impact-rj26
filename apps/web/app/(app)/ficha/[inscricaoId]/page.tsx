@@ -1,8 +1,18 @@
 import Link from 'next/link';
 import { AcoesFicha } from '@/components/acoes-ficha';
+import { Info } from '@/components/info';
 import { ResumoIA } from '@/components/resumo-ia';
 import { api } from '@/lib/api';
-import { classeSituacao, data, dataHora, numero, prazo, rotuloSituacao } from '@/lib/formato';
+import {
+  classeSituacao,
+  DICAS,
+  data,
+  dataHora,
+  dicaSituacao,
+  numero,
+  prazo,
+  rotuloSituacao,
+} from '@/lib/formato';
 
 interface Criterio {
   confirmado: boolean;
@@ -74,12 +84,19 @@ const classeCanal = (canal: string | null, status: string | null) => {
   return 'canal canal-neutro';
 };
 
+const ABAS = ['resposta', 'contato', 'tentativa', 'nota', 'situacao'] as const;
+type Aba = (typeof ABAS)[number];
+
 export default async function FichaPagina({
   params,
+  searchParams,
 }: {
   params: Promise<{ inscricaoId: string }>;
+  searchParams: Promise<{ aba?: string }>;
 }) {
   const { inscricaoId } = await params;
+  const { aba } = await searchParams;
+  const abaInicial = ABAS.find((a) => a === aba) as Aba | undefined;
   const ficha = await api<Ficha>(`/api/ficha/${inscricaoId}`);
 
   const principal =
@@ -103,7 +120,8 @@ export default async function FichaPagina({
           <p className="subtitulo">
             <span className={classeSituacao(principal?.situacao ?? '')}>
               {rotuloSituacao(principal?.situacao ?? '')}
-            </span>{' '}
+            </span>
+            <Info texto={dicaSituacao(principal?.situacao ?? '')} />{' '}
             <span className="mono">aluno_anon {ficha.cadastro.alunoAnon}</span> · nasc.{' '}
             {ficha.cadastro.nascimentoAnomes} · {principal?.grupamento} · {principal?.turno} ·{' '}
             {principal?.ordem}ª opção
@@ -154,6 +172,7 @@ export default async function FichaPagina({
           <ResumoIA inscricaoId={inscricaoId} />
 
           <AcoesFicha
+            abaInicial={abaInicial}
             contato={ficha.contato}
             convocacaoId={ficha.convocacaoAberta?.id ?? null}
             inscricaoId={inscricaoId}
@@ -190,7 +209,10 @@ export default async function FichaPagina({
 
           <div className="cartao">
             <div className="cartao-titulo">
-              <h2>Pontuação</h2>
+              <h2>
+                Pontuação
+                <Info texto={DICAS.pontuacao} />
+              </h2>
               <span className="badge badge-neutro">somente leitura</span>
             </div>
             <div className="valor mono" style={{ fontSize: 27 }}>
@@ -242,7 +264,10 @@ export default async function FichaPagina({
                   <span className="mono">{o.ordem}ª</span> {o.unidade}
                   <div className="cod">{o.bairroUnidade ?? ''}</div>
                 </span>
-                <span className={classeSituacao(o.situacao)}>{rotuloSituacao(o.situacao)}</span>
+                <span>
+                  <span className={classeSituacao(o.situacao)}>{rotuloSituacao(o.situacao)}</span>
+                  <Info texto={dicaSituacao(o.situacao)} />
+                </span>
               </div>
             ))}
           </div>

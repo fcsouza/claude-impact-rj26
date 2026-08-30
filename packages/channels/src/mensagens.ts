@@ -49,3 +49,26 @@ export function textoEmail(d: DadosConvocacao): { assunto: string; corpo: string
     ].join('\n'),
   };
 }
+
+/** Aviso interno: a secretaria liga para a família antes de o prazo vencer. */
+export function textoSecretaria(d: {
+  crianca: string;
+  prazoFim: Date;
+  telefone: string | null;
+  unidade: string;
+}): { assunto: string; corpo: string } {
+  return {
+    assunto: `Contato ativo · ${d.crianca} · prazo até ${dataBR(d.prazoFim)}`,
+    corpo: [
+      `O prazo de confirmação de ${d.crianca} termina em ${dataBR(d.prazoFim)} e a família ainda não respondeu.`,
+      '',
+      `Unidade: ${d.unidade}.`,
+      `Telefone da família: ${d.telefone ?? 'não cadastrado'}.`,
+      '',
+      'Ligue para o responsável e registre a tentativa na ficha da criança.',
+      'Sem resposta até o prazo, a vaga volta para a fila automaticamente.',
+      '',
+      'Fila Viva · Secretaria Municipal de Educação do Rio de Janeiro',
+    ].join('\n'),
+  };
+}

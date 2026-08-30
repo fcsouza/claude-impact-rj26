@@ -535,3 +535,53 @@ label {
   background: var(--fv-surface);
   border-radius: var(--fv-radius-lg);
 }
+
+/* --- explicação por hover -------------------------------------------- */
+.info {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 5px;
+  font-family: var(--fv-font-sans);
+  font-size: 10px;
+  font-style: italic;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: middle;
+  color: var(--fv-text-3);
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: help;
+  border: 1px solid var(--fv-border);
+  border-radius: var(--fv-radius-pill);
+}
+.info::after {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  z-index: 30;
+  visibility: hidden;
+  width: max-content;
+  max-width: 280px;
+  padding: 8px 10px;
+  font: var(--fv-text-body);
+  font-size: 12px;
+  font-style: normal;
+  color: var(--fv-text-on-ink);
+  text-align: left;
+  white-space: normal;
+  content: attr(data-texto);
+  background: var(--fv-ink);
+  border-radius: var(--fv-radius-sm);
+  box-shadow: var(--fv-shadow-overlay);
+  opacity: 0;
+  transform: translateX(-50%);
+}
+.info:focus-visible::after,
+.info:hover::after {
+  visibility: visible;
+  opacity: 1;
+}
