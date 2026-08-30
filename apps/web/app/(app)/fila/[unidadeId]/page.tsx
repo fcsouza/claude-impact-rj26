@@ -79,7 +79,7 @@ const rotuloBadge = (b: Badge) => {
     case 'prazo_vencido':
       return {
         classe: 'badge badge-prazo',
-        dica: dicaSituacao('Cancelado pelo sistema'),
+        dica: DICAS.prazoVencido,
         texto: `prazo vencido há ${b.dias} dia(s)`,
       };
     case 'inconsistencia':
@@ -142,10 +142,11 @@ export default async function Fila({
   const dados = await api<Resposta>(`/api/fila/${unidadeId}?${consulta.toString()}`);
   const recorte = nomeDoPeriodo(dados.periodo);
 
-  const kpis = [
-    { dica: DICAS.filaViva, rotulo: 'Fila Viva', valor: numero(dados.kpis.fila) },
+  // Fila Viva, Ação hoje e Perdidos ficam sem dica nesta versão, como pediu o handoff.
+  const kpis: { apoio?: string; dica?: string; rotulo: string; valor: string }[] = [
+    { rotulo: 'Fila Viva', valor: numero(dados.kpis.fila) },
     { dica: DICAS.convocados, rotulo: 'Convocados', valor: numero(dados.kpis.convocados) },
-    { dica: DICAS.acaoHoje, rotulo: 'Ação hoje', valor: numero(dados.kpis.acaoHoje) },
+    { rotulo: 'Ação hoje', valor: numero(dados.kpis.acaoHoje) },
     {
       apoio: recorte,
       dica: DICAS.confirmados,
@@ -158,12 +159,7 @@ export default async function Fila({
       rotulo: 'Matriculados no período',
       valor: numero(dados.kpis.matriculados),
     },
-    {
-      apoio: recorte,
-      dica: DICAS.perdidos,
-      rotulo: 'Perdidos no período',
-      valor: numero(dados.kpis.perdidos),
-    },
+    { apoio: recorte, rotulo: 'Perdidos no período', valor: numero(dados.kpis.perdidos) },
   ];
 
   return (
@@ -211,7 +207,7 @@ export default async function Fila({
           <div className="kpi" key={k.rotulo}>
             <div className="rotulo">
               {k.rotulo}
-              <Info texto={k.dica} />
+              {k.dica ? <Info texto={k.dica} /> : null}
             </div>
             <div className="valor">{k.valor}</div>
             <div className="dica">{k.apoio ?? ''}</div>

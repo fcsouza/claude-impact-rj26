@@ -73,7 +73,6 @@ export function prazo(prazoFim: string | Date | null) {
  * mexer na redação é seguro, mudar o significado não é.
  */
 export const DICAS = {
-  acaoHoje: 'Convocações cujo prazo de confirmação termina hoje ou já venceu.',
   confirmados:
     'Número de alunos cujo responsável confirmou (via WhatsApp, e-mail e/ou SMS) estar ciente de que deverá comparecer à escola para efetivar a matrícula até a data sinalizada na mensagem.',
   contatoDesatualizado:
@@ -82,12 +81,11 @@ export const DICAS = {
     'Alunos que receberam contato automático da escola para preenchimento da vaga, com prazo de 3 dias úteis para matrícula.',
   estadoDuplo:
     'Uma opção deste cadastro está "Selecionada" enquanto outra segue em "Lista de espera" — verificar antes de agir.',
-  filaViva: 'Opções em lista de espera nesta unidade, ordenadas pela régua vigente do processo.',
   matriculados: 'Número de alunos que efetivaram a matrícula após a convocação.',
-  perdidos:
-    'Alunos que perderam o prazo de 3 dias úteis da convocação no período — as opções que foram para "Cancelado pelo sistema".',
   pontuacao:
     'Soma dos pesos dos critérios socioeconômicos respondidos na inscrição, conforme a régua vigente daquele processo. Os pesos mudam a cada ano — não compare pontuações de processos diferentes diretamente.',
+  prazoVencido:
+    'O prazo de 3 dias úteis venceu e a família não respondeu — a opção vai expirar automaticamente.',
   sinalizacoes:
     'Alertas automáticos gerados pelo sistema: prazo vencendo, contato desatualizado, ou inconsistência entre opções do mesmo cadastro.',
 } as const;
