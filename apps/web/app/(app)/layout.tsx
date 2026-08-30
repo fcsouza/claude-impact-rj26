@@ -27,10 +27,12 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
   }
 
   const usuario = sessao.user;
-  const unidades = await api<Unidade[]>('/api/fila/unidades').catch(() => []);
+  const { total, unidades } = await api<{ total: number; unidades: Unidade[] }>(
+    `/api/fila/unidades?limite=${LIMITE_LATERAL}`
+  ).catch(() => ({ total: 0, unidades: [] }));
   // Quem responde pela rede não opera unidade: oito nomes truncados só empurram
   // a navegação real para baixo. A CRE e a Secretaria chegam às unidades pelo painel.
-  const listarUnidades = usuario.papel === 'unidade' || unidades.length <= LIMITE_LATERAL;
+  const listarUnidades = usuario.papel === 'unidade' || total <= LIMITE_LATERAL;
 
   const iniciais = usuario.name
     .split(' ')
@@ -53,7 +55,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
             {listarUnidades ? (
               <>
                 <span className="navgrupo">Operação</span>
-                {unidades.slice(0, LIMITE_LATERAL).map((u) => (
+                {unidades.map((u) => (
                   <NavLink href={`/fila/${u.escCodigo}`} key={u.escCodigo}>
                     <span>{u.nome.length > 22 ? `${u.nome.slice(0, 22)}…` : u.nome}</span>
                     <span className="conta">{u.escCodigo}</span>
@@ -62,9 +64,9 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
               </>
             ) : null}
 
-            {listarUnidades && unidades.length > LIMITE_LATERAL ? (
+            {listarUnidades && total > unidades.length ? (
               <span className="navlink" style={{ color: 'var(--fv-text-on-ink-3)' }}>
-                e mais {unidades.length - LIMITE_LATERAL} unidades
+                e mais {total - unidades.length} unidades
               </span>
             ) : null}
 

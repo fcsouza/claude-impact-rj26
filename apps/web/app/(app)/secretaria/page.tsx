@@ -102,7 +102,7 @@ export default async function PainelSecretaria({
           <h1>Visão da rede</h1>
           <p className="subtitulo">
             {p.cres.length} coordenadorias · {numero(p.cres.reduce((a, c) => a + c.unidades, 0))}{' '}
-            unidades · processo 195/2025
+            unidades com CRE · processo 195/2025
           </p>
         </div>
         <form className="filtros" method="get" style={{ margin: 0 }}>
