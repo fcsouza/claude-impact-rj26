@@ -4,7 +4,8 @@ CRM de fila e convocação de creche para a Secretaria Municipal de Educação d
 Construído sobre as bases públicas do [CIT-SME-RJ/dadoscreche](https://github.com/CIT-SME-RJ/dadoscreche),
 processo 195/2025.
 
-Aplicação em https://filaviva.pulsolab.com.br
+- Aplicação: https://filaviva.pulsolab.com.br
+- Apresentação: [Fila Viva — Pitch Grupo 26](Fila%20Viva%20_%20Pitch%20Grupo%2026.pdf)
 
 ## Equipe 26
 
