@@ -199,6 +199,7 @@ export default async function Fila({
         <PeriodoFiltro
           ate={filtros.ate ?? ''}
           de={filtros.de ?? ''}
+          key={dados.periodo.nome}
           ocultos={ocultos(filtros, ['periodo', 'de', 'ate'])}
           periodo={dados.periodo.nome}
         />

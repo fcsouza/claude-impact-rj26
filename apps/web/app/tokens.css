@@ -1,7 +1,7 @@
 /* Fila Viva — CRM de convocação de creche · Prefeitura do Rio / SME
    Cor tirada de prefeitura.rio: azul institucional #004A80 (cabeçalho, menu e
-   rodapé do site), azul médio #008EB7 (faixa do topo), ciano #00C1CF (botões de
-   ação) e azul de link #1863DC. Cinzas #333/#707070 no texto e #ECECEC no fundo.
+   rodapé do site), ciano #00C1CF (botões de ação) e azul de link #1863DC.
+   Cinzas #333 e #707070 no texto, #ECECEC no fundo.
    O ciano tem 2:1 contra o branco — serve de acento, nunca de texto ou botão.
    A cor de situação não muda: ela codifica a máquina de estados, não a marca.
    Cera Pro é licenciada: vem primeiro na pilha e cai em Figtree, que tem o mesmo
@@ -39,7 +39,6 @@
   --fv-primary-hover: #003a64;
   --fv-primary-soft: #e6eff6;
   --fv-primary-soft-border: #c2d8e8;
-  --fv-blue-mid: #008eb7; /* faixa secundária do site */
   --fv-cyan: #00c1cf; /* acento: filete, marca na barra lateral. Nunca texto. */
   --fv-cyan-soft: #e0f7fa;
   --fv-link: #1863dc; /* link em texto corrido: 5,4:1 no branco */
