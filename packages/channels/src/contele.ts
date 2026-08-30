@@ -8,11 +8,11 @@ import type { AtualizacaoTentativa, Channel, Mensagem, ResultadoEnvio } from './
  */
 const BASE = process.env.CONTELE_BASE_URL ?? 'https://sms.comtele.com.br/api/v2';
 
-type RespostaEnvio = {
-  Success?: boolean;
+interface RespostaEnvio {
   Message?: string;
   Object?: { requestUniqueId?: string };
-};
+  Success?: boolean;
+}
 
 /** O status chega em PascalCase; a resposta da família vem em `ReceivedContent`. */
 type WebhookComtele = {

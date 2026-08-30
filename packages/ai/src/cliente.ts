@@ -28,10 +28,20 @@ export function cliente() {
     return { modelo: MODELO_BEDROCK, sdk: _bedrock, tipo: 'bedrock' as const };
   }
   if (p === 'anthropic') {
-    _anthropic ??= new Anthropic();
+    // Chave vinculada a identidade exige o workspace no cabeçalho; a antiga, não.
+    const workspace = process.env.ANTHROPIC_WORKSPACE_ID;
+    _anthropic ??= new Anthropic(
+      workspace ? { defaultHeaders: { 'anthropic-workspace-id': workspace } } : {}
+    );
     return { modelo: MODELO, sdk: _anthropic, tipo: 'anthropic' as const };
   }
   return null;
+}
+
+/** Falha de IA não pode sumir: sem isso, chave errada vira fallback silencioso. */
+export function avisarFalhaDaIa(onde: string, erro: unknown) {
+  const mensagem = erro instanceof Error ? erro.message : String(erro);
+  process.stderr.write(`[ia] ${onde} caiu para a regra local: ${mensagem}\n`);
 }
 
 /** Uma chamada de texto simples; devolve null quando não há credencial. */

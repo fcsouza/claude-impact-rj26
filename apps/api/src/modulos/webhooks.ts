@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { classificarResposta, rascunharResposta } from '@fila-viva/ai';
 import { canalPorProvedor } from '@fila-viva/channels';
 import { convocacaoAbertaPorTelefone } from '@fila-viva/core';
@@ -35,19 +36,12 @@ async function assinaturaConfere(corpoCru: string, assinatura: string | null): P
     ['sign']
   );
   const bytes = await crypto.subtle.sign('HMAC', chave, new TextEncoder().encode(corpoCru));
-  const esperada = Array.from(new Uint8Array(bytes))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+  const esperada = Buffer.from(new Uint8Array(bytes)).toString('hex');
+  const recebida = Buffer.from(assinatura, 'utf8');
+  const referencia = Buffer.from(esperada, 'utf8');
 
   // Comparação de tempo constante: um `===` vaza o tamanho do prefixo correto.
-  if (esperada.length !== assinatura.length) {
-    return false;
-  }
-  let diferenca = 0;
-  for (let i = 0; i < esperada.length; i += 1) {
-    diferenca |= esperada.charCodeAt(i) ^ assinatura.charCodeAt(i);
-  }
-  return diferenca === 0;
+  return recebida.length === referencia.length && timingSafeEqual(recebida, referencia);
 }
 
 /**
@@ -88,45 +82,10 @@ export const webhookRotas = new Elysia({ prefix: '/api/webhooks' }).post(
     const processadas: string[] = [];
 
     for (const atualizacao of atualizacoes) {
-      // biome-ignore lint/performance/noAwaitInLoops: cada atualização depende da anterior no banco
-      const alvo = await acharTentativa(atualizacao);
-
-      if (!alvo) {
-        // Sem tentativa correspondente, só a resposta da família ainda interessa:
-        // ela entra pela convocação aberta de quem escreveu.
-        if (atualizacao.inbound?.texto && atualizacao.inbound.remetente) {
-          const convocacaoDoTelefone = await convocacaoAbertaPorTelefone(
-            db,
-            atualizacao.inbound.remetente
-          );
-          if (convocacaoDoTelefone) {
-            const registrada = await registrarInbound({
-              canal: canal.nome,
-              convocacaoId: convocacaoDoTelefone.convocacaoId,
-              remetente: atualizacao.inbound.remetente,
-              texto: atualizacao.inbound.texto,
-            });
-            processadas.push(registrada.id);
-          }
-        }
-        continue;
-      }
-
-      if (atualizacao.status) {
-        await db
-          .update(tentativa)
-          .set({ status: atualizacao.status })
-          .where(eq(tentativa.id, alvo.id));
-      }
-
-      if (atualizacao.inbound?.texto) {
-        const registrada = await registrarInbound({
-          canal: canal.nome,
-          convocacaoId: alvo.convocacaoId,
-          remetente: atualizacao.inbound.remetente,
-          texto: atualizacao.inbound.texto,
-        });
-        processadas.push(registrada.id);
+      // biome-ignore lint/performance/noAwaitInLoops: cada atualização depende do banco
+      const registrada = await aplicarAtualizacao(canal.nome, atualizacao);
+      if (registrada) {
+        processadas.push(registrada);
       }
     }
 
@@ -139,6 +98,63 @@ export const webhookRotas = new Elysia({ prefix: '/api/webhooks' }).post(
     query: z.object({ token: z.string().optional() }),
   }
 );
+
+/**
+ * Aplica uma atualização do provedor: status na tentativa, e resposta da família como
+ * mensagem recebida. Sem tentativa correspondente, a resposta ainda entra pela
+ * convocação aberta de quem escreveu — é o caso comum, porque a família responde
+ * sem citar a mensagem original.
+ */
+async function aplicarAtualizacao(
+  canalNome: 'whatsapp' | 'sms' | 'email',
+  atualizacao: {
+    providerId?: string;
+    referencia?: string;
+    status?: string;
+    inbound?: { texto: string; remetente?: string };
+  }
+): Promise<string | null> {
+  const alvo = await acharTentativa(atualizacao);
+
+  if (!alvo) {
+    if (!(atualizacao.inbound?.texto && atualizacao.inbound.remetente)) {
+      return null;
+    }
+    const convocacaoDoTelefone = await convocacaoAbertaPorTelefone(
+      db,
+      atualizacao.inbound.remetente
+    );
+    if (!convocacaoDoTelefone) {
+      return null;
+    }
+    const registrada = await registrarInbound({
+      canal: canalNome,
+      convocacaoId: convocacaoDoTelefone.convocacaoId,
+      remetente: atualizacao.inbound.remetente,
+      texto: atualizacao.inbound.texto,
+    });
+    return registrada.id;
+  }
+
+  if (atualizacao.status) {
+    await db
+      .update(tentativa)
+      .set({ status: atualizacao.status as typeof tentativa.$inferInsert.status })
+      .where(eq(tentativa.id, alvo.id));
+  }
+
+  if (atualizacao.inbound?.texto) {
+    const registrada = await registrarInbound({
+      canal: canalNome,
+      convocacaoId: alvo.convocacaoId,
+      remetente: atualizacao.inbound.remetente,
+      texto: atualizacao.inbound.texto,
+    });
+    return registrada.id;
+  }
+
+  return null;
+}
 
 /** Acha a tentativa pelo id do provedor ou pela referência que mandamos junto. */
 async function acharTentativa(atualizacao: {

@@ -18,10 +18,10 @@ import type {
 const BASE = process.env.KAPSO_API_BASE_URL ?? 'https://api.kapso.ai';
 const VERSAO = process.env.META_GRAPH_VERSION ?? 'v24.0';
 
-type RespostaEnvio = {
-  messages?: { id: string }[];
+interface RespostaEnvio {
   error?: { message?: string; code?: number };
-};
+  messages?: { id: string }[];
+}
 
 export function kapso(): Channel {
   const apiKey = process.env.KAPSO_API_KEY ?? '';
@@ -107,7 +107,8 @@ export function kapso(): Channel {
   };
 }
 
-type EventoKapso = {
+interface EventoKapso {
+  conversation?: { phone_number?: string };
   event?: string;
   message?: {
     id?: string;
@@ -118,8 +119,7 @@ type EventoKapso = {
     context?: { id?: string };
     kapso?: { direction?: string; content?: string; status?: string };
   };
-  conversation?: { phone_number?: string };
-};
+}
 
 /** Formato próprio da Kapso: o telefone de quem escreveu vem na conversa. */
 function lerFormatoKapso(corpo: object): AtualizacaoTentativa[] {

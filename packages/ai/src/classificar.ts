@@ -1,4 +1,4 @@
-import { conversar, extrairJson, provedor } from './cliente.ts';
+import { avisarFalhaDaIa, conversar, extrairJson, provedor } from './cliente.ts';
 
 export type Classificacao = 'confirma' | 'extensao' | 'desiste' | 'duvida' | 'outro';
 
@@ -115,7 +115,8 @@ export async function classificarResposta(texto: string): Promise<ResultadoClass
       origem: 'claude',
       trechoChave: json.trecho_chave?.slice(0, 240) ?? texto.slice(0, 80),
     };
-  } catch {
+  } catch (erro) {
+    avisarFalhaDaIa('classificação', erro);
     return classificarPorPalavraChave(texto);
   }
 }

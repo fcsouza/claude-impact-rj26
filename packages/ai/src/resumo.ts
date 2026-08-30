@@ -1,4 +1,4 @@
-import { conversar, provedor } from './cliente.ts';
+import { avisarFalhaDaIa, conversar, provedor } from './cliente.ts';
 
 export interface FichaParaResumo {
   grupamento: string;
@@ -41,7 +41,8 @@ export async function resumirFicha(
     return texto
       ? { origem: 'claude', texto }
       : { origem: 'fallback', texto: resumoSimples(ficha) };
-  } catch {
+  } catch (erro) {
+    avisarFalhaDaIa('resumo', erro);
     return { origem: 'fallback', texto: resumoSimples(ficha) };
   }
 }

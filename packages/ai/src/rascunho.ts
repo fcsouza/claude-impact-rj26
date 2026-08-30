@@ -1,4 +1,4 @@
-import { conversar, provedor } from './cliente.ts';
+import { avisarFalhaDaIa, conversar, provedor } from './cliente.ts';
 
 const SYSTEM = `Você redige a resposta de um servidor da Secretaria Municipal de Educação do Rio para uma família que perguntou algo sobre a convocação de creche.
 Até três frases, português do Brasil, voz ativa, tom cordial e direto.
@@ -36,7 +36,8 @@ export async function rascunharResposta(args: {
           origem: 'fallback',
           texto: `Olá! A vaga de ${args.nome} é na ${args.unidade}, em ${args.endereco}. O prazo para confirmar vai até ${prazo}. Responda SIM para confirmar a vaga.`,
         };
-  } catch {
+  } catch (erro) {
+    avisarFalhaDaIa('rascunho', erro);
     return {
       origem: 'fallback',
       texto: `Olá! A vaga de ${args.nome} é na ${args.unidade}, em ${args.endereco}. O prazo para confirmar vai até ${prazo}. Responda SIM para confirmar a vaga.`,
