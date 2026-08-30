@@ -87,8 +87,8 @@ tanto no seed local quanto no staging.
 | --- | --- | --- |
 | Secretaria | `secretaria@filaviva.rio` | a rede inteira, as 12 CREs lado a lado |
 | CRE | `cre@filaviva.rio` | as unidades da 7ª CRE |
-| Diretor | `unidade1@filaviva.rio` | CM Rio Novo — Rio das Pedras |
-| Diretor | `unidade2@filaviva.rio` | EDI Clarice Lispector — Itanhangá |
+| Diretor | `unidade1@filaviva.rio` | CM Rio Novo - Rio das Flores (Rio das Pedras) |
+| Diretor | `unidade2@filaviva.rio` | EDI Escritora Clarice Lispector (Itanhangá) |
 
 O caminho mais curto para ver as três visões, em ordem:
 
