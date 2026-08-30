@@ -20,14 +20,18 @@ const VERSAO = process.env.CONTELE_API_VERSAO === 'v2' ? 'v2' : 'nova';
  */
 const ROTA = Number.parseInt(process.env.CONTELE_ROUTE_ID ?? '', 10) || 17;
 
+const ACENTOS = /[\u0300-\u036f]/g;
+const NAO_DIGITO = /\D/g;
+const ZEROS_INICIAIS = /^0+/;
+
 /** Acento vira caractere de 2 bytes no SMS e dobra o custo por mensagem. */
 function semAcento(texto: string): string {
-  return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return texto.normalize('NFD').replace(ACENTOS, '');
 }
 
 /** A Comtele espera só dígitos, com DDI e sem o zero de discagem. */
 function soDigitos(telefone: string): string {
-  return telefone.replace(/\D/g, '').replace(/^0+/, '');
+  return telefone.replace(NAO_DIGITO, '').replace(ZEROS_INICIAIS, '');
 }
 const BASE =
   process.env.CONTELE_BASE_URL ??
