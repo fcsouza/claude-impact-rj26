@@ -11,6 +11,7 @@ import {
   percentual,
   prazo,
   rotuloClassificacao,
+  valorRepetido,
 } from '@/lib/formato';
 
 interface VisaoUnidade {
@@ -66,6 +67,9 @@ export default async function PainelUnidade({
   const filtros = await searchParams;
   const p = await api<VisaoUnidade>(`/api/painel/unidade/${unidadeId}`);
   const contatos = paginar(p.contatosVelhos, filtros.pc, 15);
+  const idadeDoContato = (c: { meses: number | null }) =>
+    c.meses === null ? 'sem registro' : `há ${c.meses} meses`;
+  const contatoIgual = valorRepetido(p.contatosVelhos, idadeDoContato);
 
   const vencendo = p.convocacoes.filter(
     (c) => c.vencido || new Date(c.prazoFim).toDateString() === new Date().toDateString()
@@ -240,7 +244,10 @@ export default async function PainelUnidade({
       <div className="cartao">
         <div className="cartao-titulo">
           <h2>Contato velho na frente da fila</h2>
-          <span className="cod">corrigir antes de convocar</span>
+          <span className="cod">
+            corrigir antes de convocar
+            {contatoIgual ? ` · ${contatoIgual} em todas` : ''}
+          </span>
         </div>
         {p.contatosVelhos.length === 0 ? (
           <p className="vazio">Nenhum contato desatualizado entre os próximos da fila.</p>
@@ -249,7 +256,7 @@ export default async function PainelUnidade({
             <thead>
               <tr>
                 <th>Criança</th>
-                <th style={{ width: 160 }}>Último contato</th>
+                {contatoIgual ? null : <th style={{ width: 160 }}>Último contato</th>}
                 <th style={{ width: 140 }}>Ação</th>
               </tr>
             </thead>
@@ -262,7 +269,7 @@ export default async function PainelUnidade({
                       {c.grupamento} · {c.turno}
                     </div>
                   </td>
-                  <td>{c.meses === null ? 'sem registro' : `há ${c.meses} meses`}</td>
+                  {contatoIgual ? null : <td>{idadeDoContato(c)}</td>}
                   <td>
                     <Link href={`/ficha/${c.inscricaoId}?aba=contato`}>Atualizar contato</Link>
                   </td>

@@ -206,7 +206,7 @@ export default async function Fila({
 
       <div className="kpis" style={{ marginBottom: 'var(--fv-space-4)' }}>
         {kpis.map((k) => (
-          <div className={k.atencao ? 'kpi kpi-atencao' : 'kpi'} key={k.rotulo}>
+          <div className={k.atencao ? 'kpi kpi-alerta' : 'kpi'} key={k.rotulo}>
             <div className="rotulo">
               {k.rotulo}
               {k.dica ? <Info texto={k.dica} /> : null}

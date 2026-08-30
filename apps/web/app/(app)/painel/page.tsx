@@ -1,7 +1,16 @@
 import Link from 'next/link';
 import { Paginacao } from '@/components/paginacao';
 import { api } from '@/lib/api';
-import { data, numero, paginar, percentual, prazo } from '@/lib/formato';
+import {
+  alarmeDeEntrega,
+  data,
+  numero,
+  paginar,
+  percentual,
+  prazo,
+  taxa,
+  valorRepetido,
+} from '@/lib/formato';
 
 interface Painel {
   bairros: {
@@ -77,6 +86,9 @@ export default async function PainelCre({
   const limite = dias ?? '2';
   const p = await api<Painel>(`/api/painel?dias=${limite}`);
   const semMovimento = paginar(p.semMovimento, filtros.pm, 15);
+  const ultimaVagaIgual = valorRepetido(p.semMovimento, (u) =>
+    u.ultimaVaga ? data(u.ultimaVaga) : 'nunca'
+  );
   const desempenho = paginar(p.unidades, filtros.pu, 15);
   const bairros = paginar(p.bairros, filtros.pb, 15);
 
@@ -84,6 +96,7 @@ export default async function PainelCre({
     .filter((c) => c.status === 'entregue' || c.status === 'lido' || c.status === 'respondido')
     .reduce((a, c) => a + c.total, 0);
   const totalTentativas = p.canais.reduce((a, c) => a + c.total, 0);
+  const entrega = taxa(entregues, totalTentativas);
 
   const kpis = [
     {
@@ -97,9 +110,12 @@ export default async function PainelCre({
       valor: numero(new Set(p.inconsistencias.map((i) => i.alunoAnon)).size),
     },
     {
-      dica: `${numero(totalTentativas)} tentativas em 30 dias`,
+      alarme: alarmeDeEntrega(entregues, totalTentativas),
+      dica: entrega.fraca
+        ? 'amostra pequena para virar percentual'
+        : `${numero(totalTentativas)} tentativas em 30 dias`,
       rotulo: 'Entrega dos canais',
-      valor: totalTentativas ? percentual(entregues / totalTentativas) : '—',
+      valor: entrega.texto,
     },
     {
       dica: 'vencidos ou vencendo hoje',
@@ -133,7 +149,7 @@ export default async function PainelCre({
 
       <div className="kpis" style={{ marginBottom: 'var(--fv-space-4)' }}>
         {kpis.map((k) => (
-          <div className="kpi" key={k.rotulo}>
+          <div className={k.alarme ? `kpi ${k.alarme}` : 'kpi'} key={k.rotulo}>
             <div className="rotulo">{k.rotulo}</div>
             <div className="valor">{k.valor}</div>
             <div className="dica">{k.dica}</div>
@@ -278,7 +294,10 @@ export default async function PainelCre({
       <div className="cartao">
         <div className="cartao-titulo">
           <h2>Unidades sem movimento</h2>
-          <span className="cod">fila cheia e nenhuma vaga aberta em 14 dias</span>
+          <span className="cod">
+            fila cheia e nenhuma vaga aberta em 14 dias
+            {ultimaVagaIgual ? ` · última vaga: ${ultimaVagaIgual} em todas` : ''}
+          </span>
         </div>
         {p.semMovimento.length === 0 ? (
           <p className="vazio">Todas as unidades com fila movimentaram vaga no período.</p>
@@ -288,7 +307,7 @@ export default async function PainelCre({
               <tr>
                 <th>Unidade</th>
                 <th style={{ textAlign: 'right', width: 100 }}>Na fila</th>
-                <th style={{ width: 160 }}>Última vaga</th>
+                {ultimaVagaIgual ? null : <th style={{ width: 160 }}>Última vaga</th>}
                 <th style={{ width: 90 }}>Ação</th>
               </tr>
             </thead>
@@ -300,7 +319,9 @@ export default async function PainelCre({
                     <div className="cod">{u.bairro ?? ''}</div>
                   </td>
                   <td className="num">{numero(u.espera)}</td>
-                  <td className="mono">{u.ultimaVaga ? data(u.ultimaVaga) : 'nunca'}</td>
+                  {ultimaVagaIgual ? null : (
+                    <td className="mono">{u.ultimaVaga ? data(u.ultimaVaga) : 'nunca'}</td>
+                  )}
                   <td>
                     <Link href={`/unidade/${u.unidadeId}`}>Abrir</Link>
                   </td>

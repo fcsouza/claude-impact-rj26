@@ -65,6 +65,25 @@
   color: var(--fv-text-on-ink);
   background: var(--fv-ink);
 }
+/* No desktop o menu está sempre aberto: o <details> só recolhe em tela estreita,
+   onde a barra lateral vira faixa no topo em vez de paredão antes do conteúdo. */
+.menu-lateral {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.menu-abrir {
+  display: none;
+  width: 100%;
+}
+.sidebar .menu-conteudo {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
 /* A marca fica no alto e o usuário no rodapé; o meio é que rola. Sem isto a
    lista de unidades empurrava o botão de sair para fora da tela. */
 .sidebar-nav {
@@ -222,13 +241,21 @@
   border: 1px solid var(--fv-border);
   border-radius: var(--fv-radius-md);
 }
-.kpi-atencao {
+.kpi-alerta {
   background: var(--fv-danger-soft);
   border-color: var(--fv-danger-soft-border);
 }
+.kpi-alerta .rotulo,
+.kpi-alerta .valor {
+  color: var(--fv-danger);
+}
+.kpi-atencao {
+  background: var(--fv-warn-soft);
+  border-color: var(--fv-warn-soft-border);
+}
 .kpi-atencao .rotulo,
 .kpi-atencao .valor {
-  color: var(--fv-danger);
+  color: var(--fv-warn);
 }
 .kpi .rotulo {
   display: flex;
@@ -617,13 +644,55 @@ label {
     grid-template-columns: 1fr;
   }
   .sidebar {
-    position: static;
+    position: sticky;
+    z-index: 20;
     height: auto;
-    overflow: visible;
+    max-height: 100vh;
+    padding: var(--fv-space-3) var(--fv-space-4);
+    overflow-y: auto;
   }
   .sidebar-nav {
     flex: none;
     overflow-y: visible;
+  }
+  .brand {
+    padding-bottom: var(--fv-space-2);
+    margin-bottom: 0;
+  }
+  .menu-abrir {
+    display: flex;
+    gap: var(--fv-space-2);
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px var(--fv-space-3);
+    margin-top: var(--fv-space-2);
+    font: var(--fv-text-label);
+    color: var(--fv-text-on-ink);
+    text-transform: uppercase;
+    letter-spacing: 0.11em;
+    cursor: pointer;
+    background: var(--fv-ink-hover);
+    border: 0;
+    border-radius: var(--fv-radius-sm);
+  }
+  .menu-seta {
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid currentcolor;
+    border-bottom: 2px solid currentcolor;
+    transform: rotate(45deg) translate(-2px, -2px);
+  }
+  .menu-seta[data-aberto="true"] {
+    transform: rotate(-135deg) translate(-2px, -2px);
+  }
+  .sidebar .menu-conteudo[data-aberto="false"] {
+    display: none;
+  }
+  .sidebar .menu-conteudo[data-aberto="true"] {
+    padding-top: var(--fv-space-2);
+  }
+  .usuario {
+    margin-top: var(--fv-space-2);
   }
   .conteudo {
     padding: var(--fv-space-4);

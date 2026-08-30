@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Paginacao } from '@/components/paginacao';
 import { api } from '@/lib/api';
-import { numero, paginar, percentual } from '@/lib/formato';
+import { alarmeDeEntrega, numero, paginar, percentual, taxa } from '@/lib/formato';
 
 interface Secretaria {
   bairros: {
@@ -56,15 +56,21 @@ export default async function PainelSecretaria({
     .reduce((a, c) => a + c.total, 0);
   const tentativas = p.canais.reduce((a, c) => a + c.total, 0);
 
-  const kpis = [
+  const confirmacao = taxa(confirmadas, encerradas);
+  const entrega = taxa(entregues, tentativas);
+
+  const kpis: { alarme?: string; dica: string; rotulo: string; valor: string }[] = [
     { dica: 'crianças aguardando na rede', rotulo: 'Fila em espera', valor: numero(espera) },
     {
-      dica: `${numero(encerradas)} convocações encerradas`,
+      dica: confirmacao.fraca
+        ? 'amostra pequena para virar percentual'
+        : `${numero(encerradas)} convocações encerradas`,
       rotulo: 'Confirmação da rede',
-      valor: encerradas ? percentual(confirmadas / encerradas) : '—',
+      valor: confirmacao.texto,
     },
     {
-      dica: `${numero(p.tempo.vagas)} vagas preenchidas`,
+      dica:
+        p.tempo.vagas === 1 ? '1 vaga preenchida' : `${numero(p.tempo.vagas)} vagas preenchidas`,
       rotulo: 'Tempo médio da vaga',
       valor: p.tempo.horas ? `${p.tempo.horas.toFixed(1)} h` : '—',
     },
@@ -79,9 +85,12 @@ export default async function PainelSecretaria({
       valor: numero(semResposta),
     },
     {
-      dica: `${numero(tentativas)} tentativas em 30 dias`,
+      alarme: alarmeDeEntrega(entregues, tentativas),
+      dica: entrega.fraca
+        ? 'amostra pequena para virar percentual'
+        : `${numero(tentativas)} tentativas em 30 dias`,
       rotulo: 'Entrega dos canais',
-      valor: tentativas ? percentual(entregues / tentativas) : '—',
+      valor: entrega.texto,
     },
   ];
 
@@ -109,7 +118,7 @@ export default async function PainelSecretaria({
 
       <div className="kpis" style={{ marginBottom: 'var(--fv-space-4)' }}>
         {kpis.map((k) => (
-          <div className="kpi" key={k.rotulo}>
+          <div className={k.alarme ? `kpi ${k.alarme}` : 'kpi'} key={k.rotulo}>
             <div className="rotulo">{k.rotulo}</div>
             <div className="valor">{k.valor}</div>
             <div className="dica">{k.dica}</div>

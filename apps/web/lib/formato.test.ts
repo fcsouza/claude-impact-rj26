@@ -1,5 +1,13 @@
 import { describe, expect, test } from 'bun:test';
-import { paginar, prazo, rotuloAcao, rotuloSituacao } from './formato.ts';
+import {
+  alarmeDeEntrega,
+  paginar,
+  prazo,
+  rotuloAcao,
+  rotuloSituacao,
+  taxa,
+  valorRepetido,
+} from './formato.ts';
 
 const LISTA = Array.from({ length: 32 }, (_, i) => i + 1);
 
@@ -45,5 +53,45 @@ describe('vocabulário da tela', () => {
     expect(prazo(new Date(Date.now() + 12 * 3_600_000)).texto).toBe('falta 1 dia');
     expect(prazo(new Date(Date.now() + 48 * 3_600_000)).texto).toBe('faltam 2 dias');
     expect(prazo(new Date(Date.now() - 30 * 3_600_000)).texto).toBe('vencido ontem');
+  });
+});
+
+describe('taxa com a amostra à vista', () => {
+  test('amostra grande vira percentual', () => {
+    expect(taxa(9, 12).texto).toBe('75%');
+    expect(taxa(9, 12).fraca).toBe(false);
+  });
+
+  test('amostra pequena vira fração, para ninguém ler tendência', () => {
+    expect(taxa(2, 2).texto).toBe('2 de 2');
+    expect(taxa(2, 2).fraca).toBe(true);
+  });
+
+  test('sem caso nenhum é traço', () => {
+    expect(taxa(0, 0).texto).toBe('—');
+  });
+
+  test('entrega baixa só alarma com amostra que sustente', () => {
+    expect(alarmeDeEntrega(2, 5)).toBeUndefined();
+    expect(alarmeDeEntrega(4, 10)).toBe('kpi-alerta');
+    expect(alarmeDeEntrega(8, 10)).toBe('kpi-atencao');
+    expect(alarmeDeEntrega(10, 10)).toBeUndefined();
+  });
+});
+
+describe('coluna com valor repetido', () => {
+  const linhas = [{ v: 'há 20 meses' }, { v: 'há 20 meses' }, { v: 'há 20 meses' }];
+  const ler = (l: { v: string }) => l.v;
+
+  test('some quando toda linha diz a mesma coisa', () => {
+    expect(valorRepetido(linhas, ler)).toBe('há 20 meses');
+  });
+
+  test('fica quando alguma linha diverge', () => {
+    expect(valorRepetido([...linhas, { v: 'há 3 meses' }], ler)).toBeNull();
+  });
+
+  test('uma linha só não é repetição', () => {
+    expect(valorRepetido([{ v: 'há 20 meses' }], ler)).toBeNull();
   });
 });

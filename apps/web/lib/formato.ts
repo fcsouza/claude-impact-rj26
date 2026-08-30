@@ -192,3 +192,45 @@ export function paginar<T>(itens: T[], pagina: string | undefined, porPagina: nu
     total: itens.length,
   };
 }
+
+/** Abaixo disto a taxa vira fração: 100% de duas convocações não é tendência. */
+export const AMOSTRA_MINIMA = 10;
+
+/**
+ * Taxa com a amostra à vista. Devolve o percentual quando há caso suficiente,
+ * a fração quando a amostra é pequena, e traço quando não houve nada.
+ */
+export function taxa(numerador: number, denominador: number) {
+  if (denominador === 0) {
+    return { fraca: false, texto: '—' };
+  }
+  if (denominador < AMOSTRA_MINIMA) {
+    return { fraca: true, texto: `${numero(numerador)} de ${numero(denominador)}` };
+  }
+  return { fraca: false, texto: percentual(numerador / denominador) };
+}
+
+/** Faixa de alarme de um indicador que deveria estar alto, como entrega de canal. */
+export function alarmeDeEntrega(entregues: number, tentativas: number) {
+  if (tentativas < AMOSTRA_MINIMA) {
+    return;
+  }
+  const proporcao = entregues / tentativas;
+  if (proporcao < 0.7) {
+    return 'kpi-alerta';
+  }
+  return proporcao < 0.9 ? 'kpi-atencao' : undefined;
+}
+
+/**
+ * Valor que se repete em toda a lista, se houver. Coluna com um valor só não
+ * informa nada por linha: o fato pertence ao título da seção.
+ */
+export function valorRepetido<T>(itens: T[], ler: (item: T) => string): string | null {
+  const [primeiro] = itens;
+  if (itens.length < 2 || primeiro === undefined) {
+    return null;
+  }
+  const referencia = ler(primeiro);
+  return itens.every((item) => ler(item) === referencia) ? referencia : null;
+}
