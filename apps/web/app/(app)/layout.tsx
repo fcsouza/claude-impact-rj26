@@ -58,9 +58,9 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         ) : null}
 
         {usuario.papel === 'unidade' && usuario.unidadeId ? (
-          <Link className="navlink" href={`/unidade/${usuario.unidadeId}`}>
+          <NavLink href={`/unidade/${usuario.unidadeId}`}>
             <span>Meu dia</span>
-          </Link>
+          </NavLink>
         ) : null}
 
         {usuario.papel === 'cre' || usuario.papel === 'secretaria' ? (
@@ -78,9 +78,9 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         {usuario.papel === 'secretaria' ? (
           <>
             <span className="navgrupo">Secretaria</span>
-            <Link className="navlink" href="/secretaria">
+            <NavLink href="/secretaria">
               <span>Visão da rede</span>
-            </Link>
+            </NavLink>
           </>
         ) : null}
 
