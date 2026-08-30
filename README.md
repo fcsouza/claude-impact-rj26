@@ -6,6 +6,7 @@ processo 195/2025.
 
 - Aplicação: https://filaviva.pulsolab.com.br
 - Apresentação: [Fila Viva — Pitch Grupo 26](Fila%20Viva%20_%20Pitch%20Grupo%2026.pdf)
+- Vídeo: [Fila Viva — agilidade na convocação](Fila%20Viva%20-%20agilidade%20na%20convocacao.mp4)
 
 ## Equipe 26
 
