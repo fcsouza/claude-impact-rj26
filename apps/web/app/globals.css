@@ -463,6 +463,20 @@ label {
   margin-bottom: 0;
 }
 
+/* --- disparo manual de mensagem --------------------------------------- */
+.disparo {
+  padding-top: var(--fv-space-3);
+  margin-top: var(--fv-space-4);
+  border-top: 1px solid var(--fv-border);
+}
+.disparo h3 {
+  margin: 0 0 var(--fv-space-1);
+  font-size: 0.95rem;
+}
+.disparo p {
+  margin: 0 0 var(--fv-space-3);
+}
+
 /* --- abas de ação ----------------------------------------------------- */
 .abas {
   display: flex;
