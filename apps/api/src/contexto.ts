@@ -1,5 +1,6 @@
 import { auth } from '@fila-viva/auth';
 import { db, type Papel, unidade } from '@fila-viva/db';
+import { eq } from 'drizzle-orm';
 import { Elysia, status } from 'elysia';
 import { PROBLEMAS } from './erros.ts';
 
@@ -99,6 +100,25 @@ export async function carregarPolos(): Promise<Map<string, number | null>> {
   return polos;
 }
 
+/**
+ * Creche aberta depois que o processo subiu não está no mapa. Em vez de negar até o
+ * próximo restart, lê a unidade que falta e guarda.
+ */
+async function polosCom(unidadeId: string): Promise<Map<string, number | null>> {
+  const mapa = await carregarPolos();
+  if (mapa.has(unidadeId)) {
+    return mapa;
+  }
+  const [linha] = await db
+    .select({ creId: unidade.creId })
+    .from(unidade)
+    .where(eq(unidade.escCodigo, unidadeId));
+  if (linha) {
+    mapa.set(unidadeId, linha.creId);
+  }
+  return mapa;
+}
+
 /** Só para os testes e para o seed, que trocam o conteúdo da tabela debaixo do processo. */
 export function esquecerPolos() {
   polos = null;
@@ -124,7 +144,7 @@ export function podeVerUnidade(
 }
 
 export async function exigirUnidade(autor: Autor, unidadeId: string) {
-  const carregados = await carregarPolos();
+  const carregados = await polosCom(unidadeId);
   if (!podeVerUnidade(autor, unidadeId, carregados)) {
     return status(403, PROBLEMAS.semPermissao('esta unidade está fora do seu acesso'));
   }

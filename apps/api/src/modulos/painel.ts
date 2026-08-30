@@ -19,13 +19,19 @@ import { Elysia } from 'elysia';
 import { z } from 'zod';
 import { contexto, exigirAutor, exigirUnidade } from '../contexto.ts';
 
+/** `?dias=abc` não pode virar Invalid Date lá no fundo da consulta. */
+function janelaEmDias(bruto: string | undefined): number | undefined {
+  const n = bruto ? Number(bruto) : Number.NaN;
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
 export const painelRotas = new Elysia({ prefix: '/api/painel' })
   .use(contexto)
   .get(
     '/',
     async ({ query, autor }) => {
       const creId = exigirAutor(autor).creId ?? undefined;
-      const dias = query.dias ? Number(query.dias) : undefined;
+      const dias = janelaEmDias(query.dias);
 
       const [
         paradas,
@@ -64,7 +70,7 @@ export const painelRotas = new Elysia({ prefix: '/api/painel' })
   .get(
     '/secretaria',
     async ({ query }) => {
-      const dias = query.dias ? Number(query.dias) : undefined;
+      const dias = janelaEmDias(query.dias);
       const [cres, grupamentos, tempo, bairros, conflitos, canais] = await Promise.all([
         redePorCre(db, dias),
         filaPorGrupamento(db),

@@ -11,9 +11,8 @@ import {
   unidade,
   vaga,
 } from '@fila-viva/db';
-import { and, asc, avg, count, desc, eq, lte, sql } from 'drizzle-orm';
-import { diasCorridosDesde } from './dias-uteis.ts';
-import { alunosInconsistentes } from './fila.ts';
+import { and, asc, avg, count, desc, eq, inArray, lte, sql } from 'drizzle-orm';
+import { diaISO, diasCorridosDesde, fimDoDiaNoRio } from './dias-uteis.ts';
 
 export const DIAS_SEM_MOVIMENTO = 14;
 const MESES_ATE_CONTATO_ENVELHECER = 12;
@@ -32,6 +31,8 @@ const SEM_RESPOSTA = sql`not exists (
 
 export interface LinhaCre {
   confirmadas: number;
+  convocacoesConfirmadas: number;
+  convocacoesEncerradas: number;
   creId: number;
   espera: number;
   expiradasSemResposta: number;
@@ -48,9 +49,10 @@ export interface LinhaCre {
  * pela fila, com o que cobrar em cada uma.
  */
 export async function redePorCre(db: Database, dias = 2): Promise<LinhaCre[]> {
-  const limite = new Date(Date.now() - dias * 86_400_000);
+  const janela = Number.isFinite(dias) ? dias : 2;
+  const limite = new Date(Date.now() - janela * 86_400_000);
 
-  const [filas, paradas, tempos, expiradas] = await Promise.all([
+  const [filas, paradas, tempos, expiradas, encerradas] = await Promise.all([
     db
       .select({
         confirmadas: CONFIRMADAS,
@@ -93,29 +95,44 @@ export async function redePorCre(db: Database, dias = 2): Promise<LinhaCre[]> {
       .innerJoin(unidade, eq(opcao.unidadeId, unidade.escCodigo))
       .where(and(eq(convocacao.status, 'expirada'), SEM_RESPOSTA))
       .groupBy(unidade.creId),
+
+    db
+      .select({
+        confirmadas: sql<number>`sum(case when ${convocacao.status} = 'confirmada' then 1 else 0 end)`,
+        creId: unidade.creId,
+        encerradas: count(),
+      })
+      .from(convocacao)
+      .innerJoin(opcao, eq(convocacao.opcaoId, opcao.id))
+      .innerJoin(unidade, eq(opcao.unidadeId, unidade.escCodigo))
+      .where(inArray(convocacao.status, ['confirmada', 'expirada', 'cancelada']))
+      .groupBy(unidade.creId),
   ]);
 
   const porCre = new Map(paradas.map((p) => [p.creId, p.total]));
   const porTempo = new Map(tempos.map((t) => [t.creId, t.horas]));
   const porExpirada = new Map(expiradas.map((e) => [e.creId, e.total]));
+  const porEncerrada = new Map(encerradas.map((e) => [e.creId, e]));
 
   return filas
     .filter((f): f is typeof f & { creId: number } => f.creId !== null)
     .map((f) => {
-      const confirmadas = Number(f.confirmadas ?? 0);
-      const selecionadas = Number(f.selecionadas ?? 0);
-      const encerradas = confirmadas + selecionadas;
       const horas = porTempo.get(f.creId);
+      // Taxa sobre convocação encerrada, não sobre quem ainda está com prazo correndo.
+      const decididas = porEncerrada.get(f.creId);
+      const total = Number(decididas?.encerradas ?? 0);
       return {
-        confirmadas,
+        confirmadas: Number(f.confirmadas ?? 0),
+        convocacoesConfirmadas: Number(decididas?.confirmadas ?? 0),
+        convocacoesEncerradas: total,
         creId: f.creId,
         espera: Number(f.espera ?? 0),
         expiradasSemResposta: porExpirada.get(f.creId) ?? 0,
         horasMediasDaVaga: horas ? Number(horas) : null,
         nome: f.nome,
         paradas: porCre.get(f.creId) ?? 0,
-        selecionadas,
-        taxaConfirmacao: encerradas ? confirmadas / encerradas : 0,
+        selecionadas: Number(f.selecionadas ?? 0),
+        taxaConfirmacao: total ? Number(decididas?.confirmadas ?? 0) / total : 0,
         unidades: Number(f.unidades ?? 0),
       };
     })
@@ -205,8 +222,7 @@ export async function deficitPorBairro(db: Database, creId?: number) {
 
 /** Prazos vencidos e vencendo hoje — a lista de cobrança do dia. */
 export async function prazosDoDia(db: Database, creId?: number) {
-  const fimDeHoje = new Date();
-  fimDeHoje.setHours(23, 59, 59, 999);
+  const fimDeHoje = fimDoDiaNoRio();
 
   const linhas = await db
     .select({
@@ -233,8 +249,10 @@ export async function prazosDoDia(db: Database, creId?: number) {
     .orderBy(asc(convocacao.prazoFim));
 
   const agora = Date.now();
+  const hoje = diaISO(new Date());
   return linhas.map((l) => ({
     ...l,
+    venceHoje: diaISO(l.prazoFim) === hoje,
     vencido: l.prazoFim.getTime() < agora,
   }));
 }
@@ -269,7 +287,7 @@ export async function unidadesSemMovimento(
   // Data crua dentro de `sql` vira parâmetro sem tipo e o driver não serializa; ISO com cast.
   const desde = new Date(Date.now() - (args.dias ?? DIAS_SEM_MOVIMENTO) * 86_400_000).toISOString();
 
-  return await db
+  const linhas = await db
     .select({
       bairro: unidade.bairro,
       espera: ESPERA,
@@ -298,6 +316,9 @@ export async function unidadesSemMovimento(
     .groupBy(unidade.escCodigo, unidade.nome, unidade.bairro)
     .having(sql`${ESPERA} > 0`)
     .orderBy(desc(ESPERA));
+
+  // `sum()` volta como texto no driver; a tela formata número.
+  return linhas.map((l) => ({ ...l, espera: Number(l.espera) }));
 }
 
 /* ---------------------------------------------------------- nível 3: unidade */
@@ -387,8 +408,6 @@ export async function visaoDaUnidade(db: Database, unidadeId: string) {
     }))
     .filter((l) => l.meses === null || l.meses >= MESES_ATE_CONTATO_ENVELHECER);
 
-  const inconsistentes = await alunosInconsistentes(db);
-
   return {
     capacidades: capacidades.map((c) => ({
       ...c,
@@ -398,9 +417,10 @@ export async function visaoDaUnidade(db: Database, unidadeId: string) {
     convocacoes: convocacoes.map((c) => ({
       ...c,
       diaDaRegua: diasCorridosDesde(c.iniciadaEm, agora),
+      respostas: Number(c.respostas),
+      tentativas: Number(c.tentativas),
       vencido: c.prazoFim.getTime() < agora.getTime(),
     })),
-    inconsistentesNaRede: inconsistentes.size,
     pendentes,
     vagasAbertas,
   };

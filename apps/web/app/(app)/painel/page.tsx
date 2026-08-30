@@ -42,6 +42,7 @@ interface Painel {
     grupamento: string;
     turno: string;
     prazoFim: string;
+    venceHoje: boolean;
     vencido: boolean;
   }[];
   semMovimento: {

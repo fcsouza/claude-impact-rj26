@@ -106,13 +106,26 @@ Exporte e carregue:
 
 ```bash
 bq query --format=json --nouse_legacy_sql '
-  SELECT ano, id_escola, grupamento, turno, capacidade_sala
-  FROM `datario.educacao_basica.turma`
-  WHERE ano = 2026 AND nivel_ensino = "Educação Infantil"
+  SELECT
+    t.ano,
+    t.id_escola,
+    t.grupamento,
+    t.turno,
+    SUM(t.capacidade_sala) AS capacidade_sala,
+    COUNT(DISTINCT a.id_aluno) AS matriculados
+  FROM `datario.educacao_basica.turma` t
+  LEFT JOIN `datario.educacao_basica.aluno_turma` a
+    ON a.id_turma = t.id_turma AND a.ano = t.ano
+  WHERE t.ano = 2026 AND t.nivel_ensino = "Educação Infantil"
+  GROUP BY 1, 2, 3, 4
 ' > turmas.json
 
 bun run db:capacidade turmas.json
 ```
+
+`turma` não tem contagem de matrícula — ela sai do `aluno_turma`, por isso a junção.
+Uma ressalva na capacidade: duas turmas que dividem a mesma sala somam a sala duas vezes.
+Enquanto a rede for de turno único por sala isso não aparece; em turno duplo, superestima.
 
 O importador soma as turmas por unidade, grupamento e turno, traduz o turno da SME
 (manhã, tarde, integral) para a jornada da fila (Integral, Parcial) e ignora escola que

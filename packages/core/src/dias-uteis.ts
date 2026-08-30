@@ -33,6 +33,14 @@ export function diaISO(data: Date): string {
   }).format(data);
 }
 
+/**
+ * Último instante do dia no fuso do Rio. O servidor roda em UTC; sem isso, das 21h
+ * em diante "hoje" já é o dia seguinte e a lista de prazos vem errada.
+ */
+export function fimDoDiaNoRio(agora = new Date()): Date {
+  return new Date(`${diaISO(agora)}T23:59:59.999-03:00`);
+}
+
 export function ehDiaUtil(data: Date): boolean {
   const semana = new Date(`${diaISO(data)}T12:00:00-03:00`).getUTCDay();
   const fimDeSemana = semana === 0 || semana === 6;

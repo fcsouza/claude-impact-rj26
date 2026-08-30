@@ -14,6 +14,8 @@ interface Secretaria {
   canais: { canal: string; status: string; total: number }[];
   cres: {
     confirmadas: number;
+    convocacoesConfirmadas: number;
+    convocacoesEncerradas: number;
     creId: number;
     espera: number;
     expiradasSemResposta: number;
@@ -41,12 +43,10 @@ export default async function PainelSecretaria({
   const p = await api<Secretaria>(`/api/painel/secretaria?dias=${limite}`);
 
   const espera = p.cres.reduce((a, c) => a + c.espera, 0);
-  const confirmadas = p.cres.reduce((a, c) => a + c.confirmadas, 0);
-  const selecionadas = p.cres.reduce((a, c) => a + c.selecionadas, 0);
+  const confirmadas = p.cres.reduce((a, c) => a + c.convocacoesConfirmadas, 0);
+  const encerradas = p.cres.reduce((a, c) => a + c.convocacoesEncerradas, 0);
   const paradas = p.cres.reduce((a, c) => a + c.paradas, 0);
   const semResposta = p.cres.reduce((a, c) => a + c.expiradasSemResposta, 0);
-  const encerradas = confirmadas + selecionadas;
-
   const entregues = p.canais
     .filter((c) => ENTREGUES.has(c.status))
     .reduce((a, c) => a + c.total, 0);
