@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Info } from '@/components/info';
+import { PeriodoFiltro } from '@/components/periodo-filtro';
 import { api } from '@/lib/api';
 import {
   classeSituacao,
@@ -74,13 +75,13 @@ const rotuloBadge = (b: Badge) => {
       return {
         classe: 'badge badge-neutro',
         dica: dicaSituacao('Selecionado'),
-        texto: `convocado há ${b.dias} dia(s)`,
+        texto: `convocado ${emDias(b.dias)}`,
       };
     case 'prazo_vencido':
       return {
         classe: 'badge badge-prazo',
         dica: DICAS.prazoVencido,
-        texto: `prazo vencido há ${b.dias} dia(s)`,
+        texto: `prazo vencido ${emDias(b.dias)}`,
       };
     case 'inconsistencia':
       return { classe: 'badge badge-prazo', dica: DICAS.estadoDuplo, texto: 'estado duplo' };
@@ -99,6 +100,14 @@ const rotuloBadge = (b: Badge) => {
     default:
       return { classe: 'badge', dica: '', texto: '' };
   }
+};
+
+/** "há 0 dia(s)" não é português de tela: conta em dias falados. */
+const emDias = (dias: number) => {
+  if (dias === 0) {
+    return 'hoje';
+  }
+  return dias === 1 ? 'ontem' : `há ${dias} dias`;
 };
 
 /** Nome do recorte para o texto de apoio dos cartões. */
@@ -143,10 +152,20 @@ export default async function Fila({
   const recorte = nomeDoPeriodo(dados.periodo);
 
   // Fila Viva, Ação hoje e Perdidos ficam sem dica nesta versão, como pediu o handoff.
-  const kpis: { apoio?: string; dica?: string; rotulo: string; valor: string }[] = [
+  const kpis: {
+    apoio?: string;
+    atencao?: boolean;
+    dica?: string;
+    rotulo: string;
+    valor: string;
+  }[] = [
     { rotulo: 'Fila Viva', valor: numero(dados.kpis.fila) },
     { dica: DICAS.convocados, rotulo: 'Convocados', valor: numero(dados.kpis.convocados) },
-    { rotulo: 'Ação hoje', valor: numero(dados.kpis.acaoHoje) },
+    {
+      atencao: dados.kpis.acaoHoje > 0,
+      rotulo: 'Ação hoje',
+      valor: numero(dados.kpis.acaoHoje),
+    },
     {
       apoio: recorte,
       dica: DICAS.confirmados,
@@ -177,34 +196,18 @@ export default async function Fila({
           </p>
         </div>
 
-        <form className="filtros" method="get" style={{ margin: 0 }}>
-          {ocultos(filtros, ['periodo', 'de', 'ate'])}
-          <div className="campo">
-            <label htmlFor="periodo">Período dos cartões</label>
-            <select defaultValue={dados.periodo.nome} id="periodo" name="periodo">
-              <option value="semana">Última semana</option>
-              <option value="mes">Último mês</option>
-              <option value="processo">Processo atual</option>
-              <option value="custom">Personalizado</option>
-            </select>
-          </div>
-          <div className="campo">
-            <label htmlFor="de">De</label>
-            <input defaultValue={filtros.de ?? ''} id="de" name="de" type="date" />
-          </div>
-          <div className="campo">
-            <label htmlFor="ate">Até</label>
-            <input defaultValue={filtros.ate ?? ''} id="ate" name="ate" type="date" />
-          </div>
-          <button className="botao botao-secundario" type="submit">
-            Aplicar
-          </button>
-        </form>
+        <PeriodoFiltro
+          ate={filtros.ate ?? ''}
+          de={filtros.de ?? ''}
+          key={dados.periodo.nome}
+          ocultos={ocultos(filtros, ['periodo', 'de', 'ate'])}
+          periodo={dados.periodo.nome}
+        />
       </div>
 
       <div className="kpis" style={{ marginBottom: 'var(--fv-space-4)' }}>
         {kpis.map((k) => (
-          <div className="kpi" key={k.rotulo}>
+          <div className={k.atencao ? 'kpi kpi-atencao' : 'kpi'} key={k.rotulo}>
             <div className="rotulo">
               {k.rotulo}
               {k.dica ? <Info texto={k.dica} /> : null}
@@ -215,7 +218,7 @@ export default async function Fila({
         ))}
       </div>
 
-      <div className="cartao">
+      <div className="filtros-caixa">
         <form className="filtros" method="get">
           {ocultos(filtros, ['turno', 'grupamento', 'situacao', 'busca'])}
           <div className="campo">
@@ -264,8 +267,10 @@ export default async function Fila({
             Limpar
           </Link>
         </form>
+      </div>
 
-        <div style={{ overflowX: 'auto' }}>
+      <div className="cartao">
+        <div className="tabela-rolagem">
           <table>
             <thead>
               <tr>
@@ -308,10 +313,12 @@ export default async function Fila({
                     </td>
                     <td>{linha.bairroFamilia ?? '—'}</td>
                     <td>
-                      <span className={classeSituacao(linha.situacao)}>
-                        {rotuloSituacao(linha.situacao)}
+                      <span className="termo">
+                        <span className={classeSituacao(linha.situacao)}>
+                          {rotuloSituacao(linha.situacao)}
+                        </span>
+                        <Info texto={dicaSituacao(linha.situacao)} />
                       </span>
-                      <Info texto={dicaSituacao(linha.situacao)} />
                       {linha.prazoFim ? <div className={p.classe}>{p.texto}</div> : null}
                     </td>
                     <td>
@@ -326,14 +333,14 @@ export default async function Fila({
                       })}
                     </td>
                     <td>
-                      <Link href={`/ficha/${linha.inscricaoId}`}>Abrir ficha</Link>
-                      {linha.convocacaoId ? (
-                        <div>
+                      <div className="acoes-linha">
+                        <Link href={`/ficha/${linha.inscricaoId}`}>Abrir ficha</Link>
+                        {linha.convocacaoId ? (
                           <Link href={`/ficha/${linha.inscricaoId}?aba=tentativa`}>
                             Registrar contato
                           </Link>
-                        </div>
-                      ) : null}
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 );

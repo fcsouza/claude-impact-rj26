@@ -118,7 +118,7 @@ export default async function PainelSecretaria({
           <h2>Coordenadorias regionais</h2>
           <span className="cod">ordenadas pela fila</span>
         </div>
-        <div style={{ overflowX: 'auto' }}>
+        <div className="tabela-rolagem">
           <table>
             <thead>
               <tr>

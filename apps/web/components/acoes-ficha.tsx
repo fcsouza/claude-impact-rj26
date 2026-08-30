@@ -112,12 +112,16 @@ export function AcoesFicha({
         <span className="cod">toda mutação vira evento de auditoria</span>
       </div>
 
-      <div className="filtros" style={{ marginBottom: 'var(--fv-space-3)' }}>
+      <div className="abas" role="tablist">
         {abas.map((a) => (
           <button
-            className={`botao ${aba === a.chave ? '' : 'botao-secundario'}`}
+            aria-controls="painel-acoes"
+            aria-selected={aba === a.chave}
+            className="aba"
+            id={`aba-${a.chave}`}
             key={a.chave}
             onClick={() => setAba(a.chave)}
+            role="tab"
             type="button"
           >
             {a.rotulo}
@@ -125,289 +129,291 @@ export function AcoesFicha({
         ))}
       </div>
 
-      {aba === 'resposta' ? (
-        <div>
-          {convocacaoId ? (
-            <>
-              <div className="filtros">
+      <div aria-labelledby={`aba-${aba}`} id="painel-acoes" role="tabpanel">
+        {aba === 'resposta' ? (
+          <div>
+            {convocacaoId ? (
+              <>
+                <div className="filtros">
+                  <button
+                    className="botao"
+                    disabled={pendente}
+                    onClick={() =>
+                      executar('Vaga confirmada e demais opções canceladas.', () =>
+                        confirmarVaga(convocacaoId, inscricaoId)
+                      )
+                    }
+                    type="button"
+                  >
+                    Confirmou a vaga
+                  </button>
+                  <button
+                    className="botao botao-secundario"
+                    disabled={pendente}
+                    onClick={() =>
+                      executar('E-mail enviado: a secretaria vai ligar para o responsável.', () =>
+                        notificarSecretaria(convocacaoId, inscricaoId)
+                      )
+                    }
+                    type="button"
+                  >
+                    Notificar secretaria
+                  </button>
+                  <button
+                    className="botao botao-perigo"
+                    disabled={pendente || justificativa.trim().length < 3}
+                    onClick={() =>
+                      executar('Desistência registrada.', () =>
+                        cancelarConvocacao({
+                          convocacaoId,
+                          inscricaoId,
+                          justificativa,
+                          motivo: 'desistiu',
+                        })
+                      )
+                    }
+                    type="button"
+                  >
+                    Desistiu
+                  </button>
+                  <button
+                    className="botao botao-secundario"
+                    disabled={pendente || justificativa.trim().length < 3}
+                    onClick={() =>
+                      executar('Prazo estendido em um dia útil.', () =>
+                        estenderPrazo({ convocacaoId, inscricaoId, justificativa })
+                      )
+                    }
+                    type="button"
+                  >
+                    Estender prazo (CRE)
+                  </button>
+                </div>
+
+                <div className="campo">
+                  <label htmlFor="justificativa">
+                    Motivo · obrigatório para desistência e extensão
+                  </label>
+                  <input
+                    id="justificativa"
+                    onChange={(e) => setJustificativa(e.target.value)}
+                    placeholder="família informou por telefone que…"
+                    type="text"
+                    value={justificativa}
+                  />
+                </div>
+
+                <div className="campo">
+                  <label htmlFor="texto-resposta">
+                    Mensagem recebida · Claude lê e sugere a ação
+                  </label>
+                  <textarea
+                    id="texto-resposta"
+                    onChange={(e) => setTexto(e.target.value)}
+                    placeholder="consigo só na sexta de manhã"
+                    rows={2}
+                    value={texto}
+                  />
+                  <button
+                    className="botao botao-ia"
+                    disabled={pendente || texto.trim().length < 2}
+                    onClick={() =>
+                      executar('Resposta registrada; a sugestão aparece na timeline.', () =>
+                        simularResposta({ convocacaoId, inscricaoId, texto })
+                      )
+                    }
+                    style={{ marginTop: 8 }}
+                    type="button"
+                  >
+                    Registrar resposta e classificar
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="vazio">Não há convocação aberta para esta criança.</p>
+            )}
+          </div>
+        ) : null}
+
+        {aba === 'contato' ? (
+          <div>
+            <div className="linha-campos">
+              {(
+                [
+                  ['telefone', 'Telefone'],
+                  ['whatsapp', 'WhatsApp'],
+                  ['email', 'E-mail'],
+                  ['melhorHorario', 'Melhor horário'],
+                ] as const
+              ).map(([campo, rotulo]) => (
+                <div className="campo" key={campo}>
+                  <label htmlFor={campo}>{rotulo}</label>
+                  <input
+                    id={campo}
+                    onChange={(e) => setForm({ ...form, [campo]: e.target.value })}
+                    type="text"
+                    value={form[campo]}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="campo">
+              <label htmlFor="obs">Observação</label>
+              <input
+                id="obs"
+                onChange={(e) => setForm({ ...form, obs: e.target.value })}
+                type="text"
+                value={form.obs}
+              />
+            </div>
+            <p className="cod">
+              O valor anterior é preservado; a edição cria a versão v{(contato?.versao ?? 0) + 1} na
+              timeline.
+            </p>
+            <button
+              className="botao"
+              disabled={pendente}
+              onClick={() =>
+                executar('Contato salvo em versão nova.', () =>
+                  salvarContato({ inscricaoId, ...form })
+                )
+              }
+              type="button"
+            >
+              Salvar versão
+            </button>
+          </div>
+        ) : null}
+
+        {aba === 'tentativa' ? (
+          <div>
+            {convocacaoId ? (
+              <>
+                <div className="linha-campos">
+                  <div className="campo">
+                    <label htmlFor="canal">Canal</label>
+                    <select id="canal" onChange={(e) => setCanal(e.target.value)} value={canal}>
+                      <option value="telefone">Telefone</option>
+                      <option value="presencial">Presencial</option>
+                      <option value="whatsapp">WhatsApp</option>
+                      <option value="sms">SMS</option>
+                      <option value="email">E-mail</option>
+                    </select>
+                  </div>
+                  <div className="campo" style={{ flex: 1 }}>
+                    <label htmlFor="resultado">Resultado</label>
+                    <input
+                      id="resultado"
+                      onChange={(e) => setResultado(e.target.value)}
+                      placeholder="ligou, ninguém atendeu"
+                      type="text"
+                      value={resultado}
+                    />
+                  </div>
+                </div>
                 <button
                   className="botao"
-                  disabled={pendente}
+                  disabled={pendente || resultado.trim().length < 2}
                   onClick={() =>
-                    executar('Vaga confirmada e demais opções canceladas.', () =>
-                      confirmarVaga(convocacaoId, inscricaoId)
-                    )
-                  }
-                  type="button"
-                >
-                  Confirmou a vaga
-                </button>
-                <button
-                  className="botao botao-secundario"
-                  disabled={pendente}
-                  onClick={() =>
-                    executar('E-mail enviado: a secretaria vai ligar para o responsável.', () =>
-                      notificarSecretaria(convocacaoId, inscricaoId)
-                    )
-                  }
-                  type="button"
-                >
-                  Notificar secretaria
-                </button>
-                <button
-                  className="botao botao-perigo"
-                  disabled={pendente || justificativa.trim().length < 3}
-                  onClick={() =>
-                    executar('Desistência registrada.', () =>
-                      cancelarConvocacao({
+                    executar('Tentativa manual registrada.', () =>
+                      registrarTentativaManual({
+                        canal,
                         convocacaoId,
                         inscricaoId,
-                        justificativa,
-                        motivo: 'desistiu',
+                        resultado,
+                        status: 'enviado',
                       })
                     )
                   }
                   type="button"
                 >
-                  Desistiu
+                  Registrar tentativa
                 </button>
-                <button
-                  className="botao botao-secundario"
-                  disabled={pendente || justificativa.trim().length < 3}
-                  onClick={() =>
-                    executar('Prazo estendido em um dia útil.', () =>
-                      estenderPrazo({ convocacaoId, inscricaoId, justificativa })
-                    )
-                  }
-                  type="button"
-                >
-                  Estender prazo (CRE)
-                </button>
-              </div>
+              </>
+            ) : (
+              <p className="vazio">Sem convocação aberta para registrar tentativa.</p>
+            )}
+          </div>
+        ) : null}
 
+        {aba === 'nota' ? (
+          <div>
+            <div className="campo">
+              <label htmlFor="nota">Nota livre</label>
+              <textarea id="nota" onChange={(e) => setNota(e.target.value)} rows={3} value={nota} />
+            </div>
+            <button
+              className="botao"
+              disabled={pendente || nota.trim().length < 2}
+              onClick={() =>
+                executar('Nota salva.', async () => {
+                  await salvarNota({ inscricaoId, texto: nota });
+                  setNota('');
+                })
+              }
+              type="button"
+            >
+              Salvar nota
+            </button>
+          </div>
+        ) : null}
+
+        {aba === 'situacao' ? (
+          <div>
+            <div className="linha-campos">
               <div className="campo">
-                <label htmlFor="justificativa">
-                  Motivo · obrigatório para desistência e extensão
-                </label>
+                <label htmlFor="status-novo">Novo status</label>
+                <select
+                  id="status-novo"
+                  onChange={(e) => setNovoStatus(e.target.value)}
+                  value={novoStatus}
+                >
+                  {STATUS.map((s) => (
+                    <option key={s.valor} value={s.valor}>
+                      {s.rotulo}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="campo" style={{ flex: 1 }}>
+                <label htmlFor="motivo-situacao">Motivo · obrigatório</label>
                 <input
-                  id="justificativa"
+                  id="motivo-situacao"
                   onChange={(e) => setJustificativa(e.target.value)}
-                  placeholder="família informou por telefone que…"
+                  placeholder={
+                    novoStatus === 'outro' ? 'descreva o que aconteceu' : 'o que a família informou'
+                  }
                   type="text"
                   value={justificativa}
                 />
               </div>
-
-              <div className="campo">
-                <label htmlFor="texto-resposta">
-                  Mensagem recebida · Claude lê e sugere a ação
-                </label>
-                <textarea
-                  id="texto-resposta"
-                  onChange={(e) => setTexto(e.target.value)}
-                  placeholder="consigo só na sexta de manhã"
-                  rows={2}
-                  value={texto}
-                />
-                <button
-                  className="botao botao-ia"
-                  disabled={pendente || texto.trim().length < 2}
-                  onClick={() =>
-                    executar('Resposta registrada; a sugestão aparece na timeline.', () =>
-                      simularResposta({ convocacaoId, inscricaoId, texto })
-                    )
-                  }
-                  style={{ marginTop: 8 }}
-                  type="button"
-                >
-                  Registrar resposta e classificar
-                </button>
-              </div>
-            </>
-          ) : (
-            <p className="vazio">Não há convocação aberta para esta criança.</p>
-          )}
-        </div>
-      ) : null}
-
-      {aba === 'contato' ? (
-        <div>
-          <div className="linha-campos">
-            {(
-              [
-                ['telefone', 'Telefone'],
-                ['whatsapp', 'WhatsApp'],
-                ['email', 'E-mail'],
-                ['melhorHorario', 'Melhor horário'],
-              ] as const
-            ).map(([campo, rotulo]) => (
-              <div className="campo" key={campo}>
-                <label htmlFor={campo}>{rotulo}</label>
-                <input
-                  id={campo}
-                  onChange={(e) => setForm({ ...form, [campo]: e.target.value })}
-                  type="text"
-                  value={form[campo]}
-                />
-              </div>
-            ))}
-          </div>
-          <div className="campo">
-            <label htmlFor="obs">Observação</label>
-            <input
-              id="obs"
-              onChange={(e) => setForm({ ...form, obs: e.target.value })}
-              type="text"
-              value={form.obs}
-            />
-          </div>
-          <p className="cod">
-            O valor anterior é preservado; a edição cria a versão v{(contato?.versao ?? 0) + 1} na
-            timeline.
-          </p>
-          <button
-            className="botao"
-            disabled={pendente}
-            onClick={() =>
-              executar('Contato salvo em versão nova.', () =>
-                salvarContato({ inscricaoId, ...form })
-              )
-            }
-            type="button"
-          >
-            Salvar versão
-          </button>
-        </div>
-      ) : null}
-
-      {aba === 'tentativa' ? (
-        <div>
-          {convocacaoId ? (
-            <>
-              <div className="linha-campos">
-                <div className="campo">
-                  <label htmlFor="canal">Canal</label>
-                  <select id="canal" onChange={(e) => setCanal(e.target.value)} value={canal}>
-                    <option value="telefone">Telefone</option>
-                    <option value="presencial">Presencial</option>
-                    <option value="whatsapp">WhatsApp</option>
-                    <option value="sms">SMS</option>
-                    <option value="email">E-mail</option>
-                  </select>
-                </div>
-                <div className="campo" style={{ flex: 1 }}>
-                  <label htmlFor="resultado">Resultado</label>
-                  <input
-                    id="resultado"
-                    onChange={(e) => setResultado(e.target.value)}
-                    placeholder="ligou, ninguém atendeu"
-                    type="text"
-                    value={resultado}
-                  />
-                </div>
-              </div>
-              <button
-                className="botao"
-                disabled={pendente || resultado.trim().length < 2}
-                onClick={() =>
-                  executar('Tentativa manual registrada.', () =>
-                    registrarTentativaManual({
-                      canal,
-                      convocacaoId,
-                      inscricaoId,
-                      resultado,
-                      status: 'enviado',
-                    })
-                  )
-                }
-                type="button"
-              >
-                Registrar tentativa
-              </button>
-            </>
-          ) : (
-            <p className="vazio">Sem convocação aberta para registrar tentativa.</p>
-          )}
-        </div>
-      ) : null}
-
-      {aba === 'nota' ? (
-        <div>
-          <div className="campo">
-            <label htmlFor="nota">Nota livre</label>
-            <textarea id="nota" onChange={(e) => setNota(e.target.value)} rows={3} value={nota} />
-          </div>
-          <button
-            className="botao"
-            disabled={pendente || nota.trim().length < 2}
-            onClick={() =>
-              executar('Nota salva.', async () => {
-                await salvarNota({ inscricaoId, texto: nota });
-                setNota('');
-              })
-            }
-            type="button"
-          >
-            Salvar nota
-          </button>
-        </div>
-      ) : null}
-
-      {aba === 'situacao' ? (
-        <div>
-          <div className="linha-campos">
-            <div className="campo">
-              <label htmlFor="status-novo">Novo status</label>
-              <select
-                id="status-novo"
-                onChange={(e) => setNovoStatus(e.target.value)}
-                value={novoStatus}
-              >
-                {STATUS.map((s) => (
-                  <option key={s.valor} value={s.valor}>
-                    {s.rotulo}
-                  </option>
-                ))}
-              </select>
             </div>
-            <div className="campo" style={{ flex: 1 }}>
-              <label htmlFor="motivo-situacao">Motivo · obrigatório</label>
-              <input
-                id="motivo-situacao"
-                onChange={(e) => setJustificativa(e.target.value)}
-                placeholder={
-                  novoStatus === 'outro' ? 'descreva o que aconteceu' : 'o que a família informou'
-                }
-                type="text"
-                value={justificativa}
-              />
-            </div>
+            <button
+              className="botao"
+              disabled={pendente || justificativa.trim().length < 3}
+              onClick={() => {
+                const escolha = STATUS.find((s) => s.valor === novoStatus) ?? STATUS[0];
+                executar('Status da convocação atualizado.', () =>
+                  atualizarStatus({
+                    inscricaoId,
+                    justificativa,
+                    motivo: escolha.motivo,
+                    opcaoId,
+                    para: escolha.para,
+                  })
+                );
+              }}
+              type="button"
+            >
+              Aplicar mudança
+            </button>
+            <p className="cod" style={{ marginTop: 8 }}>
+              A máquina de estados recusa transição fora das arestas permitidas. A convocação aberta
+              é encerrada junto.
+            </p>
           </div>
-          <button
-            className="botao"
-            disabled={pendente || justificativa.trim().length < 3}
-            onClick={() => {
-              const escolha = STATUS.find((s) => s.valor === novoStatus) ?? STATUS[0];
-              executar('Status da convocação atualizado.', () =>
-                atualizarStatus({
-                  inscricaoId,
-                  justificativa,
-                  motivo: escolha.motivo,
-                  opcaoId,
-                  para: escolha.para,
-                })
-              );
-            }}
-            type="button"
-          >
-            Aplicar mudança
-          </button>
-          <p className="cod" style={{ marginTop: 8 }}>
-            A máquina de estados recusa transição fora das arestas permitidas. A convocação aberta é
-            encerrada junto.
-          </p>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       {aviso ? (
         <p className="aviso" style={{ marginTop: 'var(--fv-space-3)' }}>

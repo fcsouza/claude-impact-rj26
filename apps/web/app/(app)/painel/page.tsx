@@ -340,7 +340,7 @@ export default async function PainelCre({
         <div className="cartao-titulo">
           <h2>Desempenho por unidade</h2>
         </div>
-        <div style={{ overflowX: 'auto' }}>
+        <div className="tabela-rolagem">
           <table>
             <thead>
               <tr>
