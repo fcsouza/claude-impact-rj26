@@ -1,4 +1,4 @@
-import { filaDaUnidade, GRUPAMENTOS, resumoDaUnidade } from '@fila-viva/core';
+import { filaDaUnidade, GRUPAMENTOS, kpisDaUnidade, resolverPeriodo } from '@fila-viva/core';
 import { criterio, db, unidade } from '@fila-viva/db';
 import { eq } from 'drizzle-orm';
 import { Elysia } from 'elysia';
@@ -25,7 +25,8 @@ export const filaRotas = new Elysia({ prefix: '/api/fila' })
         return negado;
       }
 
-      const [linhas, resumo] = await Promise.all([
+      const periodo = resolverPeriodo(query);
+      const [linhas, kpis] = await Promise.all([
         filaDaUnidade(db, {
           busca: query.busca,
           grupamento: query.grupamento,
@@ -33,7 +34,7 @@ export const filaRotas = new Elysia({ prefix: '/api/fila' })
           turno: query.turno,
           unidadeId: params.unidadeId,
         }),
-        resumoDaUnidade(db, params.unidadeId),
+        kpisDaUnidade(db, params.unidadeId, periodo),
       ]);
 
       const [dadosUnidade] = await db
@@ -41,13 +42,22 @@ export const filaRotas = new Elysia({ prefix: '/api/fila' })
         .from(unidade)
         .where(eq(unidade.escCodigo, params.unidadeId));
 
-      return { grupamentos: GRUPAMENTOS, linhas, resumo, unidade: dadosUnidade ?? null };
+      return {
+        grupamentos: GRUPAMENTOS,
+        kpis,
+        linhas,
+        periodo: { ate: periodo.ate, de: periodo.de, nome: periodo.nome },
+        unidade: dadosUnidade ?? null,
+      };
     },
     {
       params: z.object({ unidadeId: z.string() }),
       query: z.object({
+        ate: z.string().optional(),
         busca: z.string().optional(),
+        de: z.string().optional(),
         grupamento: z.string().optional(),
+        periodo: z.enum(['semana', 'mes', 'processo', 'custom']).optional(),
         situacao: z.enum(['Lista de espera', 'Selecionado', 'Ativo', 'Confirmado']).optional(),
         turno: z.enum(['Integral', 'Parcial']).optional(),
       }),

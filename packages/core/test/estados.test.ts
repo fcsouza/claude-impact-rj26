@@ -14,6 +14,15 @@ describe('máquina de estados da opção', () => {
     expect(arestaDe('Selecionado', 'Cancelado pelo sistema', 'prazo_vencido')).toBeDefined();
   });
 
+  test('matrícula manual sai de convocado e de confirmado', () => {
+    expect(arestaDe('Selecionado', 'Ativo', 'manual')).toBeDefined();
+    expect(arestaDe('Confirmado', 'Ativo', 'manual')).toBeDefined();
+  });
+
+  test('matrícula não pula a convocação', () => {
+    expect(arestaDe('Lista de espera', 'Ativo', 'manual')).toBeUndefined();
+  });
+
   test('não se confirma quem está na lista de espera', () => {
     expect(arestaDe('Lista de espera', 'Confirmado', 'manual')).toBeUndefined();
   });

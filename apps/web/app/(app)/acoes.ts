@@ -5,15 +5,6 @@ import { api } from '@/lib/api';
 
 const json = (corpo: unknown) => ({ body: JSON.stringify(corpo), method: 'POST' });
 
-export async function abrirVaga(entrada: { unidadeId: string; turno: string; grupamento: string }) {
-  const resultado = await api<{ convocacaoId: string; candidato: { nome: string } }>(
-    '/api/convocacoes/abrir-vaga',
-    json(entrada)
-  );
-  revalidatePath(`/fila/${entrada.unidadeId}`);
-  return resultado;
-}
-
 export async function confirmarVaga(convocacaoId: string, inscricaoId: string) {
   const resultado = await api(`/api/convocacoes/${convocacaoId}/confirmar`, json({}));
   revalidatePath(`/ficha/${inscricaoId}`);
@@ -88,17 +79,30 @@ export async function salvarNota(entrada: { inscricaoId: string; texto: string }
   return saida;
 }
 
-export async function mudarSituacao(entrada: {
+export async function atualizarStatus(entrada: {
   opcaoId: string;
   inscricaoId: string;
   para: string;
+  motivo: string;
   justificativa: string;
 }) {
   const saida = await api(
     `/api/convocacoes/opcoes/${entrada.opcaoId}/situacao`,
-    json({ justificativa: entrada.justificativa, para: entrada.para })
+    json({ justificativa: entrada.justificativa, motivo: entrada.motivo, para: entrada.para })
   );
   revalidatePath(`/ficha/${entrada.inscricaoId}`);
+  return saida;
+}
+
+export async function notificarSecretaria(convocacaoId: string, inscricaoId: string) {
+  const saida = await api<{ destinatarios: number; ok: boolean }>(
+    `/api/convocacoes/${convocacaoId}/notificar-secretaria`,
+    json({})
+  );
+  revalidatePath(`/ficha/${inscricaoId}`);
+  if (!saida.ok) {
+    throw new Error('O provedor de e-mail recusou o envio para a secretaria.');
+  }
   return saida;
 }
 

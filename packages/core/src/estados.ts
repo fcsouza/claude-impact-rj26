@@ -59,6 +59,9 @@ export const ARESTAS: Aresta[] = [
     para: 'Cancelado na confirmacao',
   },
   { de: 'Ativo', exigeMotivoTexto: false, motivos: ['resposta_sim', 'manual'], para: 'Confirmado' },
+  // Matrícula efetivada na unidade. A tela chama `Ativo` de Matriculado.
+  { de: 'Selecionado', exigeMotivoTexto: false, motivos: ['manual'], para: 'Ativo' },
+  { de: 'Confirmado', exigeMotivoTexto: false, motivos: ['manual'], para: 'Ativo' },
   {
     de: 'Selecionado da lista',
     exigeMotivoTexto: false,

@@ -1,13 +1,21 @@
 import Link from 'next/link';
-import { AbrirVaga } from '@/components/abrir-vaga';
+import { Info } from '@/components/info';
 import { api } from '@/lib/api';
-import { classeSituacao, data, numero, prazo, rotuloSituacao } from '@/lib/formato';
+import {
+  classeSituacao,
+  DICAS,
+  data,
+  dicaSituacao,
+  numero,
+  prazo,
+  rotuloSituacao,
+} from '@/lib/formato';
 
 type Badge =
   | { tipo: 'selecionado_ha'; dias: number }
   | { tipo: 'prazo_vencido'; dias: number }
   | { tipo: 'inconsistencia'; detalhe: string }
-  | { tipo: 'contato_desatualizado'; meses: number }
+  | { tipo: 'contato_desatualizado'; canais: string[] }
   | { tipo: 'bairro_diferente'; bairroFamilia: string; bairroUnidade: string };
 
 interface Linha {
@@ -29,34 +37,97 @@ interface Linha {
 
 interface Resposta {
   grupamentos: string[];
+  kpis: {
+    acaoHoje: number;
+    confirmados: number;
+    convocados: number;
+    fila: number;
+    matriculados: number;
+    perdidos: number;
+  };
   linhas: Linha[];
-  resumo: Record<string, number>;
+  periodo: { ate: string; de: string; nome: 'semana' | 'mes' | 'processo' | 'custom' };
   unidade: { escCodigo: string; nome: string; bairro: string | null; creId: number | null } | null;
 }
+
+interface Filtros {
+  ate?: string;
+  busca?: string;
+  de?: string;
+  grupamento?: string;
+  periodo?: string;
+  situacao?: string;
+  turno?: string;
+}
+
+const ROTULO_CANAL: Record<string, string> = {
+  email: 'e-mail',
+  presencial: 'presencial',
+  sms: 'SMS',
+  telefone: 'telefone',
+  whatsapp: 'WhatsApp',
+};
 
 const rotuloBadge = (b: Badge) => {
   switch (b.tipo) {
     case 'selecionado_ha':
-      return { classe: 'badge badge-neutro', texto: `convocado há ${b.dias} dia(s)` };
+      return {
+        classe: 'badge badge-neutro',
+        dica: dicaSituacao('Selecionado'),
+        texto: `convocado há ${b.dias} dia(s)`,
+      };
     case 'prazo_vencido':
-      return { classe: 'badge badge-prazo', texto: `prazo vencido há ${b.dias} dia(s)` };
+      return {
+        classe: 'badge badge-prazo',
+        dica: dicaSituacao('Cancelado pelo sistema'),
+        texto: `prazo vencido há ${b.dias} dia(s)`,
+      };
     case 'inconsistencia':
-      return { classe: 'badge badge-prazo', texto: 'inconsistência' };
+      return { classe: 'badge badge-prazo', dica: DICAS.estadoDuplo, texto: 'estado duplo' };
     case 'contato_desatualizado':
-      return { classe: 'badge badge-aviso', texto: `contato de ${b.meses} meses` };
+      return {
+        classe: 'badge badge-aviso',
+        dica: DICAS.contatoDesatualizado,
+        texto: `contato desatualizado: ${b.canais.map((c) => ROTULO_CANAL[c] ?? c).join(', ')}`,
+      };
     case 'bairro_diferente':
-      return { classe: 'badge badge-neutro', texto: 'bairro diferente' };
+      return {
+        classe: 'badge badge-neutro',
+        dica: `Família em ${b.bairroFamilia}, unidade em ${b.bairroUnidade}.`,
+        texto: 'bairro diferente',
+      };
     default:
-      return { classe: 'badge', texto: '' };
+      return { classe: 'badge', dica: '', texto: '' };
   }
 };
+
+/** Nome do recorte para o texto de apoio dos cartões. */
+function nomeDoPeriodo(periodo: Resposta['periodo']): string {
+  switch (periodo.nome) {
+    case 'semana':
+      return 'última semana';
+    case 'processo':
+      return 'processo 195/2025';
+    case 'custom':
+      return `${data(periodo.de)} a ${data(periodo.ate)}`;
+    default:
+      return 'último mês';
+  }
+}
+
+/** Mantém os demais filtros ao enviar cada formulário da tela. */
+function ocultos(filtros: Filtros, exceto: (keyof Filtros)[]) {
+  return Object.entries(filtros)
+    .filter(([chave, valor]) => valor && !exceto.includes(chave as keyof Filtros))
+    .map(([chave, valor]) => <input defaultValue={valor} key={chave} name={chave} type="hidden" />);
+}
 
 export default async function Fila({
   params,
   searchParams,
 }: {
   params: Promise<{ unidadeId: string }>;
-  searchParams: Promise<{ turno?: string; grupamento?: string; situacao?: string; busca?: string }>;
+  searchParams: Promise<Filtros>;
 }) {
   const { unidadeId } = await params;
   const filtros = await searchParams;
@@ -69,25 +140,30 @@ export default async function Fila({
   }
 
   const dados = await api<Resposta>(`/api/fila/${unidadeId}?${consulta.toString()}`);
-  const total = Object.values(dados.resumo).reduce((a, b) => a + b, 0);
+  const recorte = nomeDoPeriodo(dados.periodo);
 
   const kpis = [
+    { dica: DICAS.filaViva, rotulo: 'Fila Viva', valor: numero(dados.kpis.fila) },
+    { dica: DICAS.convocados, rotulo: 'Convocados', valor: numero(dados.kpis.convocados) },
+    { dica: DICAS.acaoHoje, rotulo: 'Ação hoje', valor: numero(dados.kpis.acaoHoje) },
     {
-      dica: 'lista de espera',
-      rotulo: 'Na fila',
-      valor: numero(dados.resumo['Lista de espera'] ?? 0),
+      apoio: recorte,
+      dica: DICAS.confirmados,
+      rotulo: 'Confirmados no período',
+      valor: numero(dados.kpis.confirmados),
     },
     {
-      dica: 'aguardando confirmação',
-      rotulo: 'Convocados',
-      valor: numero(dados.resumo.Selecionado ?? 0),
+      apoio: recorte,
+      dica: DICAS.matriculados,
+      rotulo: 'Matriculados no período',
+      valor: numero(dados.kpis.matriculados),
     },
     {
-      dica: 'matrícula fechada',
-      rotulo: 'Confirmados',
-      valor: numero(dados.resumo.Confirmado ?? 0),
+      apoio: recorte,
+      dica: DICAS.perdidos,
+      rotulo: 'Perdidos no período',
+      valor: numero(dados.kpis.perdidos),
     },
-    { dica: 'todas as situações', rotulo: 'Opções no processo', valor: numero(total) },
   ];
 
   return (
@@ -104,21 +180,48 @@ export default async function Fila({
             2025
           </p>
         </div>
-        <AbrirVaga grupamentos={dados.grupamentos} unidadeId={unidadeId} />
+
+        <form className="filtros" method="get" style={{ margin: 0 }}>
+          {ocultos(filtros, ['periodo', 'de', 'ate'])}
+          <div className="campo">
+            <label htmlFor="periodo">Período dos cartões</label>
+            <select defaultValue={dados.periodo.nome} id="periodo" name="periodo">
+              <option value="semana">Última semana</option>
+              <option value="mes">Último mês</option>
+              <option value="processo">Processo atual</option>
+              <option value="custom">Personalizado</option>
+            </select>
+          </div>
+          <div className="campo">
+            <label htmlFor="de">De</label>
+            <input defaultValue={filtros.de ?? ''} id="de" name="de" type="date" />
+          </div>
+          <div className="campo">
+            <label htmlFor="ate">Até</label>
+            <input defaultValue={filtros.ate ?? ''} id="ate" name="ate" type="date" />
+          </div>
+          <button className="botao botao-secundario" type="submit">
+            Aplicar
+          </button>
+        </form>
       </div>
 
       <div className="kpis" style={{ marginBottom: 'var(--fv-space-4)' }}>
         {kpis.map((k) => (
           <div className="kpi" key={k.rotulo}>
-            <div className="rotulo">{k.rotulo}</div>
+            <div className="rotulo">
+              {k.rotulo}
+              <Info texto={k.dica} />
+            </div>
             <div className="valor">{k.valor}</div>
-            <div className="dica">{k.dica}</div>
+            <div className="dica">{k.apoio ?? ''}</div>
           </div>
         ))}
       </div>
 
       <div className="cartao">
         <form className="filtros" method="get">
+          {ocultos(filtros, ['turno', 'grupamento', 'situacao', 'busca'])}
           <div className="campo">
             <label htmlFor="turno">Turno</label>
             <select defaultValue={filtros.turno ?? ''} id="turno" name="turno">
@@ -145,7 +248,7 @@ export default async function Fila({
               <option value="Lista de espera">Lista de espera</option>
               <option value="Selecionado">Convocado</option>
               <option value="Confirmado">Confirmado</option>
-              <option value="Ativo">Ativo</option>
+              <option value="Ativo">Matriculado</option>
             </select>
           </div>
           <div className="campo" style={{ flex: 1 }}>
@@ -172,11 +275,17 @@ export default async function Fila({
               <tr>
                 <th style={{ width: 44 }}>#</th>
                 <th>Criança</th>
-                <th style={{ textAlign: 'right', width: 96 }}>Pontuação</th>
+                <th style={{ textAlign: 'right', width: 110 }}>
+                  Pontuação
+                  <Info texto={DICAS.pontuacao} />
+                </th>
                 <th style={{ width: 140 }}>Bairro</th>
                 <th style={{ width: 130 }}>Situação</th>
-                <th>Sinalizações</th>
-                <th style={{ width: 96 }}>Ação</th>
+                <th>
+                  Sinalizações
+                  <Info texto={DICAS.sinalizacoes} />
+                </th>
+                <th style={{ width: 150 }}>Ação</th>
               </tr>
             </thead>
             <tbody>
@@ -206,6 +315,7 @@ export default async function Fila({
                       <span className={classeSituacao(linha.situacao)}>
                         {rotuloSituacao(linha.situacao)}
                       </span>
+                      <Info texto={dicaSituacao(linha.situacao)} />
                       {linha.prazoFim ? <div className={p.classe}>{p.texto}</div> : null}
                     </td>
                     <td>
@@ -214,12 +324,20 @@ export default async function Fila({
                         return (
                           <span className={r.classe} key={`${linha.opcaoId}-${b.tipo}`}>
                             {r.texto}
+                            <Info texto={r.dica} />
                           </span>
                         );
                       })}
                     </td>
                     <td>
                       <Link href={`/ficha/${linha.inscricaoId}`}>Abrir ficha</Link>
+                      {linha.convocacaoId ? (
+                        <div>
+                          <Link href={`/ficha/${linha.inscricaoId}?aba=tentativa`}>
+                            Registrar contato
+                          </Link>
+                        </div>
+                      ) : null}
                     </td>
                   </tr>
                 );

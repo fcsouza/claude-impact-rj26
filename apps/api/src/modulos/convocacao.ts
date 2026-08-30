@@ -1,13 +1,26 @@
+import { canal, textoSecretaria } from '@fila-viva/channels';
 import {
   abrirVaga,
+  atualizarStatusDaConvocacao,
+  auditar,
   confirmar,
   estenderPrazo,
   proximoCandidato,
   SemCandidato,
   transicionar,
 } from '@fila-viva/core';
-import { convocacao, db, id, opcao, tentativa } from '@fila-viva/db';
-import { desc, eq } from 'drizzle-orm';
+import {
+  contato,
+  convocacao,
+  db,
+  id,
+  inscricao,
+  opcao,
+  tentativa,
+  unidade,
+  user,
+} from '@fila-viva/db';
+import { and, desc, eq } from 'drizzle-orm';
 import { Elysia, status } from 'elysia';
 import { z } from 'zod';
 import { exigirAcessoAConvocacao } from '../acesso.ts';
@@ -215,7 +228,86 @@ export const convocacaoRotas = new Elysia({ prefix: '/api/convocacoes' })
       sessao: true,
     }
   )
-  /** Transição manual direta de uma opção, com motivo obrigatório. */
+  /** Aviso à secretaria: pede contato ativo por telefone antes de o prazo vencer. */
+  .post(
+    '/:convocacaoId/notificar-secretaria',
+    async ({ params, autor }) => {
+      const acesso = await exigirAcessoAConvocacao(exigirAutor(autor), params.convocacaoId);
+      if (acesso.erro === 'negado') {
+        return acesso.resposta;
+      }
+      if (acesso.erro === 'nao-encontrado') {
+        return status(404, PROBLEMAS.naoEncontrado('convocação não encontrada'));
+      }
+
+      const [alvo] = await db
+        .select({
+          crianca: inscricao.nomeFicticio,
+          inscricaoId: inscricao.id,
+          nomeUnidade: unidade.nome,
+          prazoFim: convocacao.prazoFim,
+          unidadeId: opcao.unidadeId,
+        })
+        .from(convocacao)
+        .innerJoin(opcao, eq(convocacao.opcaoId, opcao.id))
+        .innerJoin(inscricao, eq(opcao.inscricaoId, inscricao.id))
+        .innerJoin(unidade, eq(opcao.unidadeId, unidade.escCodigo))
+        .where(eq(convocacao.id, params.convocacaoId));
+
+      if (!alvo) {
+        return status(404, PROBLEMAS.naoEncontrado('convocação não encontrada'));
+      }
+
+      // A secretaria da unidade são os usuários de papel `unidade` cadastrados nela.
+      const secretaria = await db
+        .select({ email: user.email })
+        .from(user)
+        .where(and(eq(user.unidadeId, alvo.unidadeId), eq(user.papel, 'unidade')));
+
+      if (secretaria.length === 0) {
+        return status(
+          409,
+          PROBLEMAS.conflito('nenhum e-mail de secretaria cadastrado para esta unidade')
+        );
+      }
+
+      const ultimoContato = await db.query.contato.findFirst({
+        orderBy: desc(contato.versao),
+        where: eq(contato.inscricaoId, alvo.inscricaoId),
+      });
+
+      const aviso = textoSecretaria({
+        crianca: alvo.crianca,
+        prazoFim: alvo.prazoFim,
+        telefone: ultimoContato?.telefone ?? ultimoContato?.whatsapp ?? null,
+        unidade: alvo.nomeUnidade,
+      });
+      const email = canal('email');
+      const envios = await Promise.all(
+        secretaria.map((destinatario) =>
+          email.send({
+            assunto: aviso.assunto,
+            destino: destinatario.email,
+            referencia: `secretaria:${params.convocacaoId}`,
+            texto: aviso.corpo,
+          })
+        )
+      );
+
+      await auditar(db, {
+        acao: 'notificar_secretaria',
+        autorId: exigirAutor(autor).id,
+        depois: { destinatarios: secretaria.map((d) => d.email) },
+        entidade: 'convocacao',
+        entidadeId: params.convocacaoId,
+        motivo: 'prazo de confirmação perto de vencer',
+      });
+
+      return { destinatarios: secretaria.length, ok: envios.every((e) => e.ok) };
+    },
+    { params: z.object({ convocacaoId: z.string() }), sessao: true }
+  )
+  /** Atualiza o status da convocação a partir da ficha, com motivo obrigatório. */
   .post(
     '/opcoes/:opcaoId/situacao',
     async ({ params, body, autor }) => {
@@ -229,10 +321,10 @@ export const convocacaoRotas = new Elysia({ prefix: '/api/convocacoes' })
       }
 
       try {
-        return await transicionar(db, {
+        return await atualizarStatusDaConvocacao(db, {
           autorId: exigirAutor(autor).id,
           justificativa: body.justificativa,
-          motivo: 'manual',
+          motivo: body.motivo ?? 'manual',
           opcaoId: params.opcaoId,
           para: body.para,
         });
@@ -243,7 +335,8 @@ export const convocacaoRotas = new Elysia({ prefix: '/api/convocacoes' })
     {
       body: z.object({
         justificativa: z.string().min(3),
-        para: z.enum(['Selecionado', 'Confirmado', 'Cancelado']),
+        motivo: z.enum(['manual', 'desistiu', 'nao_localizado', 'prazo_vencido']).optional(),
+        para: z.enum(['Ativo', 'Confirmado', 'Cancelado', 'Cancelado pelo sistema']),
       }),
       params: z.object({ opcaoId: z.string() }),
       sessao: true,
