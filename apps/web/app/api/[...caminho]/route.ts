@@ -38,7 +38,9 @@ async function repassar(pedido: NextRequest, caminho: string[]) {
   return new Response(resposta.body, { headers: saida, status: resposta.status });
 }
 
-type Contexto = { params: Promise<{ caminho: string[] }> };
+interface Contexto {
+  params: Promise<{ caminho: string[] }>;
+}
 
 const handler = async (pedido: NextRequest, contexto: Contexto) => {
   const { caminho } = await contexto.params;

@@ -18,6 +18,8 @@ services:
 
   api:
     image: ghcr.io/fcsouza/claude-impact-rj26/api:${TAG_IMAGEM:-latest}
+    # A tag latest não muda de nome: sem isso o compose reusa a imagem antiga.
+    pull_policy: always
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -46,6 +48,8 @@ services:
 
   worker:
     image: ghcr.io/fcsouza/claude-impact-rj26/worker:${TAG_IMAGEM:-latest}
+    # A tag latest não muda de nome: sem isso o compose reusa a imagem antiga.
+    pull_policy: always
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -67,6 +71,8 @@ services:
 
   web:
     image: ghcr.io/fcsouza/claude-impact-rj26/web:${TAG_IMAGEM:-latest}
+    # A tag latest não muda de nome: sem isso o compose reusa a imagem antiga.
+    pull_policy: always
     restart: unless-stopped
     environment:
       NODE_ENV: production
