@@ -12,6 +12,7 @@ export function resend(): Channel {
         'email.bounced': 'falhou',
         'email.complained': 'falhou',
         'email.delivered': 'entregue',
+        'email.failed': 'falhou',
         'email.opened': 'lido',
         'email.sent': 'enviado',
       };

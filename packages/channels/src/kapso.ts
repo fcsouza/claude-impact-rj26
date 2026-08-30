@@ -6,12 +6,28 @@ import type {
   StatusEnvio,
 } from './tipos.ts';
 
-const BASE = process.env.KAPSO_BASE_URL ?? 'https://app.kapso.ai/api/v1';
+/**
+ * WhatsApp pela Cloud API oficial, com a Kapso no meio. O endereço é o proxy Meta
+ * da Kapso — `https://api.kapso.ai/meta/whatsapp/v24.0/{phone_number_id}/messages` —
+ * e o corpo é o payload da Meta, não um formato próprio da Kapso.
+ *
+ * Fora da janela de 24 horas a Meta só aceita template aprovado. Quando
+ * `KAPSO_TEMPLATE_CONVOCACAO` está definido, o envio usa o template; sem ele, vai
+ * texto livre, que só chega se a família escreveu para a unidade nas últimas 24h.
+ */
+const BASE = process.env.KAPSO_API_BASE_URL ?? 'https://api.kapso.ai';
+const VERSAO = process.env.META_GRAPH_VERSION ?? 'v24.0';
 
-/** WhatsApp pela Cloud API oficial intermediada pela Kapso. */
+type RespostaEnvio = {
+  messages?: { id: string }[];
+  error?: { message?: string; code?: number };
+};
+
 export function kapso(): Channel {
   const apiKey = process.env.KAPSO_API_KEY ?? '';
   const phoneNumberId = process.env.KAPSO_PHONE_NUMBER_ID ?? '';
+  const template = process.env.KAPSO_TEMPLATE_CONVOCACAO ?? '';
+  const idioma = process.env.KAPSO_TEMPLATE_IDIOMA ?? 'pt_BR';
 
   return {
     nome: 'whatsapp',
@@ -22,7 +38,11 @@ export function kapso(): Channel {
               changes?: {
                 value?: {
                   statuses?: { id: string; status: string }[];
-                  messages?: { from: string; text?: { body: string }; context?: { id: string } }[];
+                  messages?: {
+                    from: string;
+                    text?: { body: string };
+                    context?: { id: string };
+                  }[];
                 };
               }[];
             }[];
@@ -37,6 +57,8 @@ export function kapso(): Channel {
             saida.push({ providerId: status.id, status: traduzirStatus(status.status) });
           }
           for (const msg of mudanca.value?.messages ?? []) {
+            // A família costuma responder sem citar a mensagem: sem `context.id`
+            // a ligação com a tentativa é feita pelo telefone de quem escreveu.
             saida.push({
               inbound: { remetente: msg.from, texto: msg.text?.body ?? '' },
               providerId: msg.context?.id,
@@ -49,38 +71,61 @@ export function kapso(): Channel {
     },
     provedor: 'kapso',
     async send(mensagem: Mensagem): Promise<ResultadoEnvio> {
-      if (!apiKey) {
-        return { erro: 'KAPSO_API_KEY ausente', ok: false, status: 'falhou' };
+      if (!(apiKey && phoneNumberId)) {
+        return {
+          erro: 'KAPSO_API_KEY ou KAPSO_PHONE_NUMBER_ID ausente',
+          ok: false,
+          status: 'falhou',
+        };
       }
-      try {
-        const resposta = await fetch(`${BASE}/whatsapp/messages`, {
-          body: JSON.stringify({
-            metadata: { referencia: mensagem.referencia },
-            phone_number_id: phoneNumberId,
+
+      const corpoMensagem = template
+        ? {
+            messaging_product: 'whatsapp',
+            template: {
+              components: [
+                {
+                  parameters: (mensagem.parametros ?? []).map((valor) => ({
+                    text: valor,
+                    type: 'text',
+                  })),
+                  type: 'body',
+                },
+              ],
+              language: { code: idioma },
+              name: template,
+            },
+            to: mensagem.destino,
+            type: 'template',
+          }
+        : {
+            messaging_product: 'whatsapp',
             text: { body: mensagem.texto },
             to: mensagem.destino,
             type: 'text',
-          }),
+          };
+
+      try {
+        const resposta = await fetch(`${BASE}/meta/whatsapp/${VERSAO}/${phoneNumberId}/messages`, {
+          body: JSON.stringify(corpoMensagem),
           headers: { 'content-type': 'application/json', 'X-API-Key': apiKey },
           method: 'POST',
         });
-        const corpo = (await resposta.json()) as {
-          id?: string;
-          message_id?: string;
-          error?: unknown;
-        };
+
+        const corpo = (await resposta.json()) as RespostaEnvio;
         if (!resposta.ok) {
           return {
-            erro: JSON.stringify(corpo),
+            erro: corpo.error?.message ?? `HTTP ${resposta.status}`,
             ok: false,
             payload: corpo as Record<string, unknown>,
             status: 'falhou',
           };
         }
+
         return {
           ok: true,
           payload: corpo as Record<string, unknown>,
-          providerId: corpo.message_id ?? corpo.id,
+          providerId: corpo.messages?.[0]?.id,
           status: 'enviado',
         };
       } catch (erro) {

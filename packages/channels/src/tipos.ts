@@ -5,6 +5,8 @@ export type StatusEnvio = 'enviado' | 'entregue' | 'lido' | 'falhou' | 'respondi
 export interface Mensagem {
   assunto?: string;
   destino: string;
+  /** Valores do template, na ordem em que ele os declara. Só o WhatsApp usa. */
+  parametros?: string[];
   /** Chave que volta no webhook do provedor e liga a atualização à tentativa. */
   referencia: string;
   texto: string;

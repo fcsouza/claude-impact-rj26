@@ -125,6 +125,14 @@ export async function executarTentativa(job: JobTentativa, numeroDaTentativa = 1
   const resultado = await canal.send({
     assunto: email?.assunto,
     destino,
+    // Ordem do template de convocação: criança, unidade, turno, grupamento, prazo.
+    parametros: [
+      dados.nomeCrianca,
+      dados.unidade,
+      dados.turno,
+      dados.grupamento,
+      new Intl.DateTimeFormat('pt-BR', { timeZone: 'America/Sao_Paulo' }).format(dados.prazoFim),
+    ],
     referencia: chave,
     texto,
   });
