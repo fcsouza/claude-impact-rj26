@@ -180,3 +180,15 @@ export function valorAuditoria(valor: unknown): string {
   }
   return rotuloSituacao(texto);
 }
+
+/** Recorte de uma lista já carregada, com o total preservado para a paginação. */
+export function paginar<T>(itens: T[], pagina: string | undefined, porPagina: number) {
+  const ultima = Math.max(1, Math.ceil(itens.length / porPagina));
+  const atual = Math.min(Math.max(Number(pagina ?? 1) || 1, 1), ultima);
+  return {
+    itens: itens.slice((atual - 1) * porPagina, atual * porPagina),
+    pagina: atual,
+    porPagina,
+    total: itens.length,
+  };
+}

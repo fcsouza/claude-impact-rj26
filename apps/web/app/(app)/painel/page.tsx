@@ -1,6 +1,7 @@
 import Link from 'next/link';
+import { Paginacao } from '@/components/paginacao';
 import { api } from '@/lib/api';
-import { data, numero, percentual, prazo } from '@/lib/formato';
+import { data, numero, paginar, percentual, prazo } from '@/lib/formato';
 
 interface Painel {
   bairros: {
@@ -69,11 +70,15 @@ interface Painel {
 export default async function PainelCre({
   searchParams,
 }: {
-  searchParams: Promise<{ dias?: string }>;
+  searchParams: Promise<{ dias?: string; pb?: string; pm?: string; pu?: string }>;
 }) {
-  const { dias } = await searchParams;
+  const filtros = await searchParams;
+  const { dias } = filtros;
   const limite = dias ?? '2';
   const p = await api<Painel>(`/api/painel?dias=${limite}`);
+  const semMovimento = paginar(p.semMovimento, filtros.pm, 15);
+  const desempenho = paginar(p.unidades, filtros.pu, 15);
+  const bairros = paginar(p.bairros, filtros.pb, 15);
 
   const entregues = p.canais
     .filter((c) => c.status === 'entregue' || c.status === 'lido' || c.status === 'respondido')
@@ -288,7 +293,7 @@ export default async function PainelCre({
               </tr>
             </thead>
             <tbody>
-              {p.semMovimento.map((u) => (
+              {semMovimento.itens.map((u) => (
                 <tr className="alerta" key={u.unidadeId}>
                   <td>
                     <div className="nome-linha">{u.unidade}</div>
@@ -304,6 +309,16 @@ export default async function PainelCre({
             </tbody>
           </table>
         )}
+        {p.semMovimento.length > 0 ? (
+          <Paginacao
+            base="/painel"
+            filtros={filtros}
+            pagina={semMovimento.pagina}
+            param="pm"
+            porPagina={semMovimento.porPagina}
+            total={semMovimento.total}
+          />
+        ) : null}
       </div>
 
       <div className="cartao">
@@ -354,7 +369,7 @@ export default async function PainelCre({
               </tr>
             </thead>
             <tbody>
-              {p.unidades.slice(0, 25).map((u) => (
+              {desempenho.itens.map((u) => (
                 <tr key={u.unidadeId}>
                   <td>
                     <Link className="nome-linha" href={`/unidade/${u.unidadeId}`}>
@@ -378,6 +393,14 @@ export default async function PainelCre({
             </tbody>
           </table>
         </div>
+        <Paginacao
+          base="/painel"
+          filtros={filtros}
+          pagina={desempenho.pagina}
+          param="pu"
+          porPagina={desempenho.porPagina}
+          total={desempenho.total}
+        />
       </div>
 
       <div className="cartao">
@@ -395,7 +418,7 @@ export default async function PainelCre({
             </tr>
           </thead>
           <tbody>
-            {p.bairros.slice(0, 15).map((b) => (
+            {bairros.itens.map((b) => (
               <tr key={b.bairro ?? 'sem-bairro'}>
                 <td>{b.bairro ?? '—'}</td>
                 <td className="num">{numero(b.unidades)}</td>
@@ -406,6 +429,14 @@ export default async function PainelCre({
             ))}
           </tbody>
         </table>
+        <Paginacao
+          base="/painel"
+          filtros={filtros}
+          pagina={bairros.pagina}
+          param="pb"
+          porPagina={bairros.porPagina}
+          total={bairros.total}
+        />
       </div>
     </>
   );

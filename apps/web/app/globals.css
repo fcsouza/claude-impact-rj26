@@ -629,6 +629,26 @@ label {
   border-bottom: 2px solid var(--fv-cyan);
 }
 
+/* --- paginação -------------------------------------------------------- */
+.paginacao {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fv-space-3);
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--fv-space-3);
+}
+.paginacao-botoes {
+  display: flex;
+  gap: var(--fv-space-2);
+  align-items: center;
+}
+.desligado {
+  color: var(--fv-text-disabled);
+  cursor: not-allowed;
+  background: var(--fv-surface-sunken);
+}
+
 /* --- explicação por hover -------------------------------------------- */
 .info {
   position: relative;

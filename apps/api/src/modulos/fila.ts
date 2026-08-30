@@ -29,10 +29,11 @@ export const filaRotas = new Elysia({ prefix: '/api/fila' })
       }
 
       const periodo = resolverPeriodo(query);
-      const [linhas, kpis] = await Promise.all([
+      const [fila, kpis] = await Promise.all([
         filaDaUnidade(db, {
           busca: query.busca,
           grupamento: query.grupamento,
+          pagina: query.pagina ? Number(query.pagina) : 1,
           situacoes: query.situacao ? [query.situacao] : undefined,
           turno: query.turno,
           unidadeId: params.unidadeId,
@@ -48,8 +49,11 @@ export const filaRotas = new Elysia({ prefix: '/api/fila' })
       return {
         grupamentos: GRUPAMENTOS,
         kpis,
-        linhas,
+        linhas: fila.linhas,
+        pagina: fila.pagina,
         periodo: { ate: periodo.ate, de: periodo.de, nome: periodo.nome },
+        porPagina: fila.porPagina,
+        total: fila.total,
         unidade: dadosUnidade ?? null,
       };
     },
@@ -60,6 +64,7 @@ export const filaRotas = new Elysia({ prefix: '/api/fila' })
         busca: z.string().optional(),
         de: z.string().optional(),
         grupamento: z.string().optional(),
+        pagina: z.string().optional(),
         periodo: z.enum(['semana', 'mes', 'processo', 'custom']).optional(),
         situacao: z.enum(['Lista de espera', 'Selecionado', 'Ativo', 'Confirmado']).optional(),
         turno: z.enum(['Integral', 'Parcial']).optional(),

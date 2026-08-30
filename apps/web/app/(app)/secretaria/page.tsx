@@ -1,6 +1,7 @@
 import Link from 'next/link';
+import { Paginacao } from '@/components/paginacao';
 import { api } from '@/lib/api';
-import { numero, percentual } from '@/lib/formato';
+import { numero, paginar, percentual } from '@/lib/formato';
 
 interface Secretaria {
   bairros: {
@@ -36,9 +37,10 @@ const ENTREGUES = new Set(['entregue', 'lido', 'respondido']);
 export default async function PainelSecretaria({
   searchParams,
 }: {
-  searchParams: Promise<{ dias?: string }>;
+  searchParams: Promise<{ dias?: string; pb?: string }>;
 }) {
-  const { dias } = await searchParams;
+  const filtros = await searchParams;
+  const { dias } = filtros;
   const limite = dias ?? '2';
   const p = await api<Secretaria>(`/api/painel/secretaria?dias=${limite}`);
 
@@ -48,6 +50,7 @@ export default async function PainelSecretaria({
   const paradas = p.cres.reduce((a, c) => a + c.paradas, 0);
   const semResposta = p.cres.reduce((a, c) => a + c.expiradasSemResposta, 0);
   const temCapacidade = p.bairros.some((b) => b.vagas !== null);
+  const bairros = paginar(p.bairros, filtros.pb, 15);
   const entregues = p.canais
     .filter((c) => ENTREGUES.has(c.status))
     .reduce((a, c) => a + c.total, 0);
@@ -210,7 +213,7 @@ export default async function PainelSecretaria({
             </tr>
           </thead>
           <tbody>
-            {p.bairros.slice(0, 20).map((b) => (
+            {bairros.itens.map((b) => (
               <tr key={b.bairro ?? 'sem-bairro'}>
                 <td>{b.bairro ?? '—'}</td>
                 <td className="num">{numero(b.unidades)}</td>
@@ -231,6 +234,14 @@ export default async function PainelSecretaria({
             Capacidade, matriculados e déficit ficam de fora até a carga do datalake rodar.
           </p>
         )}
+        <Paginacao
+          base="/secretaria"
+          filtros={filtros}
+          pagina={bairros.pagina}
+          param="pb"
+          porPagina={bairros.porPagina}
+          total={bairros.total}
+        />
       </div>
 
       <p className="subtitulo">

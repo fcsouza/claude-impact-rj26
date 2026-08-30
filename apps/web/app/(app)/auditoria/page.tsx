@@ -1,3 +1,4 @@
+import { Paginacao } from '@/components/paginacao';
 import { api } from '@/lib/api';
 import { dataHora, rotuloAcao, rotuloEntidade, valorAuditoria } from '@/lib/formato';
 
@@ -25,8 +26,23 @@ const resumoDiff = (
     .join(' · ');
 };
 
-export default async function Auditoria() {
-  const eventos = await api<Evento[]>('/api/painel/auditoria?limite=150');
+interface Pagina {
+  eventos: Evento[];
+  pagina: number;
+  porPagina: number;
+  total: number;
+}
+
+export default async function Auditoria({
+  searchParams,
+}: {
+  searchParams: Promise<{ pagina?: string }>;
+}) {
+  const filtros = await searchParams;
+  const dados = await api<Pagina>(
+    `/api/painel/auditoria?pagina=${filtros.pagina ?? '1'}&limite=50`
+  );
+  const { eventos } = dados;
 
   return (
     <>
@@ -69,7 +85,15 @@ export default async function Auditoria() {
         </div>
         {eventos.length === 0 ? (
           <p className="vazio">Nenhuma mutação registrada. Abra uma vaga ou edite um contato.</p>
-        ) : null}
+        ) : (
+          <Paginacao
+            base="/auditoria"
+            filtros={filtros}
+            pagina={dados.pagina}
+            porPagina={dados.porPagina}
+            total={dados.total}
+          />
+        )}
       </div>
     </>
   );

@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import { Info } from '@/components/info';
+import { Paginacao } from '@/components/paginacao';
 import { api } from '@/lib/api';
 import {
   DICAS,
   data,
   dataHora,
   numero,
+  paginar,
   percentual,
   prazo,
   rotuloClassificacao,
@@ -55,11 +57,15 @@ interface VisaoUnidade {
 
 export default async function PainelUnidade({
   params,
+  searchParams,
 }: {
   params: Promise<{ unidadeId: string }>;
+  searchParams: Promise<{ pc?: string }>;
 }) {
   const { unidadeId } = await params;
+  const filtros = await searchParams;
   const p = await api<VisaoUnidade>(`/api/painel/unidade/${unidadeId}`);
+  const contatos = paginar(p.contatosVelhos, filtros.pc, 15);
 
   const vencendo = p.convocacoes.filter(
     (c) => c.vencido || new Date(c.prazoFim).toDateString() === new Date().toDateString()
@@ -248,7 +254,7 @@ export default async function PainelUnidade({
               </tr>
             </thead>
             <tbody>
-              {p.contatosVelhos.map((c) => (
+              {contatos.itens.map((c) => (
                 <tr key={c.inscricaoId}>
                   <td>
                     <div className="nome-linha">{c.nome}</div>
@@ -265,6 +271,16 @@ export default async function PainelUnidade({
             </tbody>
           </table>
         )}
+        {p.contatosVelhos.length > 0 ? (
+          <Paginacao
+            base={`/unidade/${unidadeId}`}
+            filtros={filtros}
+            pagina={contatos.pagina}
+            param="pc"
+            porPagina={contatos.porPagina}
+            total={contatos.total}
+          />
+        ) : null}
       </div>
 
       <div className="cartao">

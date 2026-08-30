@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Info } from '@/components/info';
+import { Paginacao } from '@/components/paginacao';
 import { PeriodoFiltro } from '@/components/periodo-filtro';
 import { api } from '@/lib/api';
 import {
@@ -46,15 +47,19 @@ interface Resposta {
     perdidos: number;
   };
   linhas: Linha[];
+  pagina: number;
   periodo: { ate: string; de: string; nome: 'semana' | 'mes' | 'processo' | 'custom' };
+  porPagina: number;
+  total: number;
   unidade: { escCodigo: string; nome: string; bairro: string | null; creId: number | null } | null;
 }
 
-interface Filtros {
+interface Filtros extends Record<string, string | undefined> {
   ate?: string;
   busca?: string;
   de?: string;
   grupamento?: string;
+  pagina?: string;
   periodo?: string;
   situacao?: string;
   turno?: string;
@@ -291,7 +296,7 @@ export default async function Fila({
                 );
                 return (
                   <tr className={alerta ? 'alerta' : undefined} key={linha.opcaoId}>
-                    <td className="num">{indice + 1}</td>
+                    <td className="num">{(dados.pagina - 1) * dados.porPagina + indice + 1}</td>
                     <td>
                       <div className="nome-linha">{linha.nome}</div>
                       <div className="cod">
@@ -346,12 +351,18 @@ export default async function Fila({
         {dados.linhas.length === 0 ? (
           <p className="vazio">Nenhuma opção com esse filtro.</p>
         ) : (
-          <p className="cod" style={{ marginTop: 'var(--fv-space-3)' }}>
-            {dados.linhas.length < dados.kpis.fila + dados.kpis.convocados
-              ? `mostrando as ${dados.linhas.length} primeiras · use os filtros para chegar ao resto`
-              : `${dados.linhas.length} opções`}{' '}
-            · ordenado por pontuação, empate por data de inscrição
-          </p>
+          <>
+            <p className="cod" style={{ marginTop: 'var(--fv-space-3)' }}>
+              ordenado por pontuação, empate por data de inscrição
+            </p>
+            <Paginacao
+              base={`/fila/${unidadeId}`}
+              filtros={filtros}
+              pagina={dados.pagina}
+              porPagina={dados.porPagina}
+              total={dados.total}
+            />
+          </>
         )}
       </div>
     </>
