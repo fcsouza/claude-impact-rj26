@@ -13,3 +13,9 @@ packages/db/.seed-cache/
 .dados/
 dump.rdb
 .claude/worktrees/
+
+# skills.sh: as skills são ferramenta de quem desenvolve, não código do produto.
+# Os comandos que instalam essa mesma lista estão no README.
+.agents/
+.claude/skills/
+skills-lock.json

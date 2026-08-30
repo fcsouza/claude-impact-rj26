@@ -78,6 +78,20 @@ seguinte.
 
 Com tudo de pé: front em http://localhost:3000, API em http://localhost:3333.
 
+### Skills de design e frontend
+
+Opcional, para quem programa com agente. Instala em `.agents/skills`, fora do
+versionamento:
+
+```bash
+bunx skills add vercel-labs/agent-skills   # React, performance e o guia de interface da Vercel
+bunx skills add pbakaus/impeccable         # revisão de design: polir, criticar, tirar ruído
+bunx skills add emilkowalski/skill         # animação e acabamento de interface
+bunx skills add anthropics/skills          # frontend-design, artefatos web e utilidades
+```
+
+`bunx skills list` mostra o que está instalado, `bunx skills update` atualiza.
+
 ### Docker
 
 ```bash
