@@ -4,7 +4,7 @@ import { contato, convocacao, db, id, inscricao, nota, opcao, unidade } from '@f
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { Elysia, status } from 'elysia';
 import { z } from 'zod';
-import { contexto, exigirAutor, exigirUnidade } from '../contexto.ts';
+import { carregarPolos, contexto, exigirAutor, podeVerUnidade } from '../contexto.ts';
 import { PROBLEMAS } from '../erros.ts';
 import { timelineDaInscricao } from '../timeline.ts';
 
@@ -58,8 +58,9 @@ export const fichaRotas = new Elysia({ prefix: '/api/ficha' })
         return status(404, PROBLEMAS.naoEncontrado('inscrição não encontrada'));
       }
 
-      const alcance = ficha.opcoes.some(
-        (o) => exigirUnidade(exigirAutor(autor), o.unidadeId) === null
+      const polos = await carregarPolos();
+      const alcance = ficha.opcoes.some((o) =>
+        podeVerUnidade(exigirAutor(autor), o.unidadeId, polos)
       );
       if (!alcance) {
         return status(403, PROBLEMAS.semPermissao('esta inscrição está fora do seu acesso'));

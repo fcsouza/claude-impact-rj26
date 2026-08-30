@@ -11,6 +11,7 @@ interface Painel {
     selecionadas: number;
   }[];
   canais: { canal: string; status: string; total: number }[];
+  expiradas: { unidadeId: string; unidade: string; total: number }[];
   inconsistencias: {
     alunoAnon: string;
     nome: string;
@@ -31,6 +32,25 @@ interface Painel {
     prazoFim: string;
     tentativas: number;
     respostas: number;
+  }[];
+  prazos: {
+    convocacaoId: string;
+    inscricaoId: string;
+    nome: string;
+    unidade: string;
+    unidadeId: string;
+    grupamento: string;
+    turno: string;
+    prazoFim: string;
+    venceHoje: boolean;
+    vencido: boolean;
+  }[];
+  semMovimento: {
+    unidadeId: string;
+    unidade: string;
+    bairro: string | null;
+    espera: number;
+    ultimaVaga: string | null;
   }[];
   unidades: {
     unidadeId: string;
@@ -75,6 +95,11 @@ export default async function PainelCre({
       dica: `${numero(totalTentativas)} tentativas em 30 dias`,
       rotulo: 'Entrega dos canais',
       valor: totalTentativas ? percentual(entregues / totalTentativas) : '—',
+    },
+    {
+      dica: 'vencidos ou vencendo hoje',
+      rotulo: 'Prazos no limite',
+      valor: numero(p.prazos.length),
     },
     { dica: 'processo 195/2025', rotulo: 'Unidades no polo', valor: numero(p.unidades.length) },
   ];
@@ -205,6 +230,114 @@ export default async function PainelCre({
 
       <div className="cartao">
         <div className="cartao-titulo">
+          <h2>Prazos vencidos e vencendo hoje</h2>
+          <span className="cod">{p.prazos.length} convocações</span>
+        </div>
+        {p.prazos.length === 0 ? (
+          <p className="vazio">Nenhum prazo no limite hoje.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Criança</th>
+                <th>Unidade</th>
+                <th style={{ width: 130 }}>Prazo</th>
+                <th style={{ width: 90 }}>Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.prazos.map((linha) => {
+                const prz = prazo(linha.prazoFim);
+                return (
+                  <tr className={linha.vencido ? 'alerta' : undefined} key={linha.convocacaoId}>
+                    <td>
+                      <div className="nome-linha">{linha.nome}</div>
+                      <div className="cod">
+                        {linha.grupamento} · {linha.turno}
+                      </div>
+                    </td>
+                    <td>{linha.unidade}</td>
+                    <td className={prz.classe}>{prz.texto}</td>
+                    <td>
+                      <Link href={`/ficha/${linha.inscricaoId}`}>Ver ficha</Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="cartao">
+        <div className="cartao-titulo">
+          <h2>Unidades sem movimento</h2>
+          <span className="cod">fila cheia e nenhuma vaga aberta em 14 dias</span>
+        </div>
+        {p.semMovimento.length === 0 ? (
+          <p className="vazio">Todas as unidades com fila movimentaram vaga no período.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Unidade</th>
+                <th style={{ textAlign: 'right', width: 100 }}>Na fila</th>
+                <th style={{ width: 160 }}>Última vaga</th>
+                <th style={{ width: 90 }}>Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.semMovimento.map((u) => (
+                <tr className="alerta" key={u.unidadeId}>
+                  <td>
+                    <div className="nome-linha">{u.unidade}</div>
+                    <div className="cod">{u.bairro ?? ''}</div>
+                  </td>
+                  <td className="num">{numero(u.espera)}</td>
+                  <td className="mono">{u.ultimaVaga ? data(u.ultimaVaga) : 'nunca'}</td>
+                  <td>
+                    <Link href={`/unidade/${u.unidadeId}`}>Abrir</Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="cartao">
+        <div className="cartao-titulo">
+          <h2>Convocação expirada sem resposta</h2>
+          <span className="cod">contato da família não alcançou ninguém</span>
+        </div>
+        {p.expiradas.length === 0 ? (
+          <p className="vazio">Nenhuma convocação expirou sem resposta.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Unidade</th>
+                <th style={{ textAlign: 'right', width: 120 }}>Casos</th>
+                <th style={{ width: 90 }}>Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.expiradas.map((e) => (
+                <tr key={e.unidadeId}>
+                  <td>{e.unidade}</td>
+                  <td className="num">{numero(e.total)}</td>
+                  <td>
+                    <Link href={`/unidade/${e.unidadeId}`}>Abrir</Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="cartao">
+        <div className="cartao-titulo">
           <h2>Desempenho por unidade</h2>
         </div>
         <div style={{ overflowX: 'auto' }}>
@@ -223,7 +356,9 @@ export default async function PainelCre({
               {p.unidades.slice(0, 25).map((u) => (
                 <tr key={u.unidadeId}>
                   <td>
-                    <div className="nome-linha">{u.unidade}</div>
+                    <Link className="nome-linha" href={`/unidade/${u.unidadeId}`}>
+                      {u.unidade}
+                    </Link>
                     <div className="cod">{u.bairro ?? ''}</div>
                   </td>
                   <td className="num">{numero(u.espera)}</td>

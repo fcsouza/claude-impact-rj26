@@ -32,7 +32,7 @@ export async function exigirAcessoAConvocacao(autor: Autor, convocacaoId: string
   if (!unidadeId) {
     return { erro: 'nao-encontrado' as const };
   }
-  const negado = exigirUnidade(autor, unidadeId);
+  const negado = await exigirUnidade(autor, unidadeId);
   return negado ? { erro: 'negado' as const, resposta: negado } : { erro: null, unidadeId };
 }
 
@@ -41,6 +41,6 @@ export async function exigirAcessoAoInbound(autor: Autor, inboundId: string) {
   if (!unidadeId) {
     return { erro: 'nao-encontrado' as const };
   }
-  const negado = exigirUnidade(autor, unidadeId);
+  const negado = await exigirUnidade(autor, unidadeId);
   return negado ? { erro: 'negado' as const, resposta: negado } : { erro: null, unidadeId };
 }

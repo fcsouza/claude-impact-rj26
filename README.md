@@ -28,8 +28,9 @@ horário, e deixa a decisão com o servidor.
 - **Claude no meio do laço**: lê a resposta da família, classifica em confirma, extensão,
   desistência, dúvida ou outro, e sugere a ação. Quem aplica é o servidor — a IA nunca
   muda situação sozinha.
-- **Painel da CRE**: vagas paradas, inconsistências, conversão por unidade, fila por
-  bairro e entrega por canal.
+- **Três visões, um número só**: cada nível vê o que pode mudar. A Secretaria compara as
+  12 coordenadorias; a CRE cobra as unidades do polo; o diretor resolve o dia da creche.
+  Ninguém vê indicador que não consegue mexer.
 - **Auditoria**: toda mutação grava antes, depois, autor e horário.
 
 ## Como rodar
@@ -49,8 +50,8 @@ gera nomes fictícios em português e aponta os contatos para os telefones em
 `SEED_TELEFONES`. Ele também deixa uma convocação vencida e uma inconsistência prontas
 para a demonstração.
 
-Usuários criados: `unidade1@filaviva.rio`, `unidade2@filaviva.rio` e `cre@filaviva.rio`,
-senha `filaviva2026`.
+Usuários criados: um por nível, senha `filaviva2026` em todos. Estão na tabela da seção
+seguinte.
 
 Com tudo de pé: front em http://localhost:3000, API em http://localhost:3333.
 
@@ -80,18 +81,113 @@ domínio próprio e a rede `dokploy-network`.
 Segredos do Actions: `DOKPLOY_URL`, `DOKPLOY_API_KEY` e `DOKPLOY_COMPOSE_ID`.
 As variáveis da aplicação ficam no próprio compose, no painel do Dokploy.
 
+## Como testar
+
+Quatro contas, uma por nível de acesso. A senha é `filaviva2026` nas quatro. Elas existem
+tanto no seed local quanto no staging.
+
+| Entre como | E-mail | O que ele vê |
+| --- | --- | --- |
+| Secretaria | `secretaria@filaviva.rio` | a rede inteira, as 12 CREs lado a lado |
+| CRE | `cre@filaviva.rio` | as unidades da 7ª CRE |
+| Diretor | `unidade1@filaviva.rio` | CM Rio Novo - Rio das Flores (Rio das Pedras) |
+| Diretor | `unidade2@filaviva.rio` | EDI Escritora Clarice Lispector (Itanhangá) |
+
+O caminho mais curto para ver as três visões, em ordem:
+
+1. Entre como **Secretaria**. A home cai em `/secretaria`. A tabela traz as 12
+   coordenadorias ordenadas pela fila. Repare na coluna Confirmação: ela é calculada
+   sobre convocação encerrada, não sobre quem ainda está com o prazo correndo.
+2. Clique em **Painel de gargalos**. É a mesma tela da CRE, agora sobre a rede inteira:
+   prazos vencendo hoje, unidades sem movimento e convocação que expirou sem ninguém
+   responder. Clicar no nome de uma unidade leva ao dia dela.
+3. Saia e entre como **CRE**. A mesma tela, recortada na 7ª CRE. Troque o código na URL
+   por uma unidade de outro polo: a API devolve 403.
+4. Saia e entre como **unidade1**. A home cai em `/unidade/0716609`, o dia da creche:
+   convocação com dia da régua e prazo, resposta esperando decisão e contato velho na
+   frente da fila. Nenhuma comparação com outras unidades — quem cobra é a CRE.
+
+Duas ressalvas sobre o que você vai ver no staging.
+
+O seed carrega um polo só, então **onze das doze CREs aparecem zeradas**. A fila viva
+inteira está na 7ª, com cerca de 2,9 mil crianças esperando, a maior parte em Maternal II.
+É o desenho do seed, não um erro de contagem.
+
+As colunas de ocupação e déficit por bairro aparecem com traço: elas dependem da carga de
+capacidade do datalake, descrita adiante, que ainda não foi rodada.
+
+O staging fica em `https://filaviva.pulsolab.com.br` e só serve as três visões depois que
+esta branch entrar na `main` — o deploy sai automático a partir dali. As quatro contas já
+existem lá.
+
+## As três visões
+
+**Secretaria** (`/secretaria`) — a rede inteira, uma linha por CRE, ordenada pela fila.
+Fila em espera por grupamento, taxa de confirmação, tempo médio da vaga (da abertura à
+confirmação), vagas paradas, convocação expirada sem nenhuma resposta e déficit por
+bairro. É a tela de onde cobrar e onde investir.
+
+**CRE** (`/painel`) — as unidades do polo. Vagas paradas, prazos vencidos e vencendo
+hoje, ranking por confirmação e tentativas, unidades sem movimento em 14 dias,
+convocações que expiraram sem contato, inconsistências de cadastro e entrega por canal.
+
+**Diretor** (`/unidade/<código>`) — o dia da creche. Convocações em andamento com dia da
+régua e prazo, respostas aguardando decisão, vagas abertas, contato velho na frente da
+fila e ocupação por grupamento. Sem comparação com outras unidades: quem cobra é a CRE.
+
+O acesso segue o mesmo desenho. A Secretaria alcança a rede; a CRE, só as unidades do
+próprio polo; o servidor da creche, só a dele.
+
+## Capacidade instalada, do datalake da cidade
+
+Dois indicadores — o déficit por bairro e a ocupação por grupamento — comparam a fila com
+a capacidade real das turmas. Esse dado não está no sistema de inscrição: vem do
+[datalake do Rio](https://www.dados.rio/datalake), tabela `datario.educacao_basica.turma`.
+
+Exporte e carregue:
+
+```bash
+bq query --format=json --nouse_legacy_sql '
+  SELECT
+    t.ano,
+    t.id_escola,
+    t.grupamento,
+    t.turno,
+    SUM(t.capacidade_sala) AS capacidade_sala,
+    COUNT(DISTINCT a.id_aluno) AS matriculados
+  FROM `datario.educacao_basica.turma` t
+  LEFT JOIN `datario.educacao_basica.aluno_turma` a
+    ON a.id_turma = t.id_turma AND a.ano = t.ano
+  WHERE t.ano = 2026 AND t.nivel_ensino = "Educação Infantil"
+  GROUP BY 1, 2, 3, 4
+' > turmas.json
+
+bun run db:capacidade turmas.json
+```
+
+`turma` não tem contagem de matrícula — ela sai do `aluno_turma`, por isso a junção.
+Uma ressalva na capacidade: duas turmas que dividem a mesma sala somam a sala duas vezes.
+Enquanto a rede for de turno único por sala isso não aparece; em turno duplo, superestima.
+
+O importador soma as turmas por unidade, grupamento e turno, traduz o turno da SME
+(manhã, tarde, integral) para a jornada da fila (Integral, Parcial) e ignora escola que
+não está na base. Sem essa carga, as duas telas mostram traço em vez de fingir zero.
+
+Vale olhar também `datario.educacao_basica.escola`, que traz endereço, telefone e direção
+de cada unidade — hoje a convocação manda a família para o bairro, não para a rua.
+
 ## Arquitetura
 
 ```
-apps/web       Next.js App Router — fila, ficha, painel, auditoria e régua
+apps/web       Next.js App Router — fila, ficha, as três visões, auditoria e régua
 apps/api       Elysia — REST, Better Auth, webhooks dos canais, enfileiramento
 apps/worker    BullMQ — cadência de tentativas e expiração de prazo
-packages/core  máquina de estados, dias úteis, elegibilidade e consultas do painel
+packages/core  máquina de estados, dias úteis, elegibilidade e as consultas das três visões
 packages/db    schema Drizzle e migrações
 packages/auth  configuração do Better Auth
 packages/channels  interface Channel e adapters mock, Kapso, Contele e Resend
 packages/ai    classificação, resumo e rascunho com Claude, com regra local de reserva
-packages/seed  carga a partir do dadoscreche
+packages/seed  carga a partir do dadoscreche e da capacidade do datalake
 ```
 
 O navegador fala só com o Next, que repassa `/api/*` para o Elysia. O cookie de sessão

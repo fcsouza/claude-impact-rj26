@@ -306,6 +306,13 @@ async function criarUsuarios(unidadesDemo: string[]) {
       papel: 'cre' as const,
       unidadeId: null,
     },
+    {
+      creId: null,
+      email: 'secretaria@filaviva.rio',
+      nome: 'Secretaria Municipal de Educação',
+      papel: 'secretaria' as const,
+      unidadeId: null,
+    },
   ];
 
   for (const conta of contas) {
@@ -319,7 +326,8 @@ async function criarUsuarios(unidadesDemo: string[]) {
   }
 
   process.stdout.write(
-    'usuários: unidade1@filaviva.rio, unidade2@filaviva.rio, cre@filaviva.rio (senha filaviva2026)\n'
+    'usuários: unidade1@filaviva.rio, unidade2@filaviva.rio, cre@filaviva.rio,\n' +
+      '  secretaria@filaviva.rio (senha filaviva2026)\n'
   );
 }
 
