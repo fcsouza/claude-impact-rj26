@@ -43,6 +43,9 @@ const QUERY_B = `${BASES}/02_QueryB_RespostasSocioEconomicas.csv.gz`;
 const QUERY_C = `${BASES}/03_QueryC_PerguntasComDescricao.csv`;
 const QUERY_D = `${BASES}/04_UnidadesEscolaresComEndereco.csv`;
 
+/** Código de unidade é numérico; 'NULL' virava '000NULL' depois do padStart. */
+const SO_DIGITOS = /^\d+$/;
+
 const SITUACOES_VIVAS = new Set(['Lista de espera', 'Selecionado', 'Ativo', 'Confirmado']);
 
 function exigirArquivos() {
@@ -107,10 +110,13 @@ async function carregarUnidades() {
   const linhas: (typeof unidade.$inferInsert)[] = [];
   // Query D não tem cabeçalho: a leitura começa na primeira linha de dado.
   for await (const c of lerCsv(QUERY_D, { comCabecalho: false })) {
-    const codigo = c[1]?.padStart(7, '0');
-    if (!codigo || codigo === 'NULL') {
+    // A guarda vem antes do preenchimento: 'NULL' com zeros à esquerda vira '000NULL'
+    // e passava batido, criando uma unidade fantasma no topo da lista.
+    const codigoBruto = c[1]?.trim();
+    if (!(codigoBruto && SO_DIGITOS.test(codigoBruto))) {
       continue;
     }
+    const codigo = codigoBruto.padStart(7, '0');
     linhas.push({
       bairro: c[7] && c[7] !== 'NULL' ? c[7] : null,
       cep: c[8] && c[8] !== 'NULL' ? c[8].replace(/\D/g, '').slice(0, 8) : null,
