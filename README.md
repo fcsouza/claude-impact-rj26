@@ -45,7 +45,8 @@ horário, e deixa a decisão com o servidor.
   bairro diferente do da creche e cadastro inconsistente.
 - **Convocação automática**: abrir uma vaga seleciona a próxima criança elegível, cria a
   convocação com prazo de três dias úteis e dispara WhatsApp no D0, WhatsApp e SMS no D1,
-  SMS e e-mail no D2. Um envio por canal por dia, no máximo.
+  SMS e e-mail no D2. Um envio por canal por dia, no máximo. O servidor também dispara
+  qualquer um dos três canais na hora, pela ficha, para testar o caminho real.
 - **Ficha da criança**: dados imutáveis da inscrição, contato versionado e uma timeline
   única com tentativas, respostas, mudanças de situação, notas e edições de contato.
 - **Claude no meio do laço**: lê a resposta da família, classifica em confirma, extensão,
