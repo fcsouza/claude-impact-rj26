@@ -14,7 +14,8 @@ RUN bun install --frozen-lockfile || bun install
 
 FROM oven/bun:1.3.14 AS build
 WORKDIR /app
-ENV NEXT_TELEMETRY_DISABLED=1
+# Os binários das workspaces ficam no node_modules da raiz; sem isso o next não é achado.
+ENV NEXT_TELEMETRY_DISABLED=1 PATH=/app/node_modules/.bin:$PATH
 COPY --from=deps /app/node_modules node_modules
 COPY . .
 RUN cd apps/web && bun run build
