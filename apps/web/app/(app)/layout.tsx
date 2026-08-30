@@ -12,6 +12,13 @@ interface Unidade {
 
 const LIMITE_LATERAL = 8;
 
+function rotuloPapel(papel: string | undefined, creId: number | undefined) {
+  if (papel === 'secretaria') {
+    return 'SME · rede';
+  }
+  return papel === 'cre' ? `CRE ${creId ?? ''}` : 'unidade';
+}
+
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
   const sessao = await sessaoAtual();
   if (!sessao?.user) {
@@ -46,11 +53,17 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
 
         {unidades.length > LIMITE_LATERAL ? (
           <span className="navlink" style={{ color: 'var(--fv-text-on-ink-3)' }}>
-            e mais {unidades.length - LIMITE_LATERAL} unidades do polo
+            e mais {unidades.length - LIMITE_LATERAL} unidades
           </span>
         ) : null}
 
-        {usuario.papel === 'cre' ? (
+        {usuario.papel === 'unidade' && usuario.unidadeId ? (
+          <Link className="navlink" href={`/unidade/${usuario.unidadeId}`}>
+            <span>Meu dia</span>
+          </Link>
+        ) : null}
+
+        {usuario.papel === 'cre' || usuario.papel === 'secretaria' ? (
           <>
             <span className="navgrupo">Coordenadoria</span>
             <Link className="navlink" href="/painel">
@@ -58,6 +71,15 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
             </Link>
             <Link className="navlink" href="/auditoria">
               <span>Auditoria</span>
+            </Link>
+          </>
+        ) : null}
+
+        {usuario.papel === 'secretaria' ? (
+          <>
+            <span className="navgrupo">Secretaria</span>
+            <Link className="navlink" href="/secretaria">
+              <span>Visão da rede</span>
             </Link>
           </>
         ) : null}
@@ -71,9 +93,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
           <span className="avatar">{iniciais}</span>
           <div style={{ minWidth: 0 }}>
             <div style={{ font: 'var(--fv-text-row)' }}>{usuario.name}</div>
-            <div className="conta">
-              {usuario.papel === 'cre' ? `CRE ${usuario.creId ?? ''}` : 'unidade'}
-            </div>
+            <div className="conta">{rotuloPapel(usuario.papel, usuario.creId)}</div>
           </div>
           <SairBotao />
         </div>

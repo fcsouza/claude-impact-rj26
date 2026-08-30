@@ -20,7 +20,7 @@ export const convocacaoRotas = new Elysia({ prefix: '/api/convocacoes' })
   .get(
     '/proximo',
     async ({ query, autor }) => {
-      const negado = exigirUnidade(exigirAutor(autor), query.unidadeId);
+      const negado = await exigirUnidade(exigirAutor(autor), query.unidadeId);
       if (negado) {
         return negado;
       }
@@ -42,7 +42,7 @@ export const convocacaoRotas = new Elysia({ prefix: '/api/convocacoes' })
   .post(
     '/abrir-vaga',
     async ({ body, autor }) => {
-      const negado = exigirUnidade(exigirAutor(autor), body.unidadeId);
+      const negado = await exigirUnidade(exigirAutor(autor), body.unidadeId);
       if (negado) {
         return negado;
       }
@@ -223,7 +223,7 @@ export const convocacaoRotas = new Elysia({ prefix: '/api/convocacoes' })
       if (!alvo) {
         return status(404, PROBLEMAS.naoEncontrado('opção não encontrada'));
       }
-      const negado = exigirUnidade(exigirAutor(autor), alvo.unidadeId);
+      const negado = await exigirUnidade(exigirAutor(autor), alvo.unidadeId);
       if (negado) {
         return negado;
       }

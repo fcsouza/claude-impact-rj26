@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "build": "bun run --cwd apps/web build",
+    "db:capacidade": "bun run --cwd packages/seed capacidade",
     "db:generate": "bun run --cwd packages/db generate",
     "db:migrate": "bun run --cwd packages/db migrate",
     "db:seed": "bun run --cwd packages/seed seed",

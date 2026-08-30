@@ -10,8 +10,14 @@ export default async function Inicio() {
   if (!sessao?.user) {
     redirect('/login');
   }
+  if (sessao.user.papel === 'secretaria') {
+    redirect('/secretaria');
+  }
   if (sessao.user.papel === 'cre') {
     redirect('/painel');
+  }
+  if (sessao.user.unidadeId) {
+    redirect(`/unidade/${sessao.user.unidadeId}`);
   }
 
   const unidades = await api<Unidade[]>('/api/fila/unidades').catch(() => []);

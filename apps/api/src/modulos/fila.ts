@@ -11,8 +11,11 @@ export const filaRotas = new Elysia({ prefix: '/api/fila' })
     '/unidades',
     async ({ autor }) => {
       const todas = await db.select().from(unidade);
+      if (autor?.papel === 'secretaria') {
+        return todas;
+      }
       return autor?.papel === 'cre'
-        ? todas.filter((u) => !autor.creId || u.creId === autor.creId)
+        ? todas.filter((u) => autor.creId !== null && u.creId === autor.creId)
         : todas.filter((u) => u.escCodigo === autor?.unidadeId);
     },
     { sessao: true }
@@ -20,7 +23,7 @@ export const filaRotas = new Elysia({ prefix: '/api/fila' })
   .get(
     '/:unidadeId',
     async ({ params, query, autor }) => {
-      const negado = exigirUnidade(exigirAutor(autor), params.unidadeId);
+      const negado = await exigirUnidade(exigirAutor(autor), params.unidadeId);
       if (negado) {
         return negado;
       }

@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "capacidade": "bun run src/capacidade.ts",
     "seed": "bun run src/index.ts"
   },
   "dependencies": {

@@ -28,7 +28,7 @@ export const situacaoEnum = pgEnum('situacao', [
 ]);
 
 export const turnoEnum = pgEnum('turno', ['Integral', 'Parcial']);
-export const papelEnum = pgEnum('papel', ['unidade', 'cre']);
+export const papelEnum = pgEnum('papel', ['unidade', 'cre', 'secretaria']);
 export const canalEnum = pgEnum('canal', ['whatsapp', 'sms', 'email', 'telefone', 'presencial']);
 export const origemEnum = pgEnum('origem_tentativa', ['auto', 'manual']);
 export const statusTentativaEnum = pgEnum('status_tentativa', [
@@ -86,6 +86,36 @@ export const unidade = pgTable(
     tipo: text(),
   },
   (t) => [index('unidade_cre_idx').on(t.creId)]
+);
+
+/**
+ * Capacidade instalada por unidade, grupamento e turno. Vem do datalake da cidade
+ * (`datario.educacao_basica.turma`), não do sistema de inscrição — por isso fica em
+ * tabela própria, com o ano da fonte. Quando está vazia, as telas mostram traço.
+ */
+export const capacidade = pgTable(
+  'capacidade',
+  {
+    ano: integer().notNull(),
+    atualizadoEm: timestamp({ withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+    criadoEm: timestamp({ withTimezone: true }).defaultNow().notNull(),
+    fonte: text().default('datalake').notNull(),
+    grupamento: text().notNull(),
+    id: text().primaryKey(),
+    matriculados: integer().default(0).notNull(),
+    turno: turnoEnum().notNull(),
+    unidadeId: varchar({ length: 10 })
+      .notNull()
+      .references(() => unidade.escCodigo),
+    vagas: integer().default(0).notNull(),
+  },
+  (t) => [
+    uniqueIndex('capacidade_chave_idx').on(t.unidadeId, t.ano, t.grupamento, t.turno),
+    index('capacidade_unidade_idx').on(t.unidadeId),
+  ]
 );
 
 /* -------------------------------------------------------- better auth */
@@ -453,3 +483,4 @@ export type Inscricao = typeof inscricao.$inferSelect;
 export type Convocacao = typeof convocacao.$inferSelect;
 export type Tentativa = typeof tentativa.$inferSelect;
 export type Usuario = typeof user.$inferSelect;
+export type Capacidade = typeof capacidade.$inferSelect;

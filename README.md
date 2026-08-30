@@ -25,8 +25,9 @@ horário, e deixa a decisão com o servidor.
 - **Claude no meio do laço**: lê a resposta da família, classifica em confirma, extensão,
   desistência, dúvida ou outro, e sugere a ação. Quem aplica é o servidor — a IA nunca
   muda situação sozinha.
-- **Painel da CRE**: vagas paradas, inconsistências, conversão por unidade, fila por
-  bairro e entrega por canal.
+- **Três visões, um número só**: cada nível vê o que pode mudar. A Secretaria compara as
+  12 coordenadorias; a CRE cobra as unidades do polo; o diretor resolve o dia da creche.
+  Ninguém vê indicador que não consegue mexer.
 - **Auditoria**: toda mutação grava antes, depois, autor e horário.
 
 ## Como rodar
@@ -46,8 +47,8 @@ gera nomes fictícios em português e aponta os contatos para os telefones em
 `SEED_TELEFONES`. Ele também deixa uma convocação vencida e uma inconsistência prontas
 para a demonstração.
 
-Usuários criados: `unidade1@filaviva.rio`, `unidade2@filaviva.rio` e `cre@filaviva.rio`,
-senha `filaviva2026`.
+Usuários criados: `unidade1@filaviva.rio`, `unidade2@filaviva.rio`, `cre@filaviva.rio` e
+`secretaria@filaviva.rio`, senha `filaviva2026`.
 
 Com tudo de pé: front em http://localhost:3000, API em http://localhost:3333.
 
@@ -77,18 +78,61 @@ domínio próprio e a rede `dokploy-network`.
 Segredos do Actions: `DOKPLOY_URL`, `DOKPLOY_API_KEY` e `DOKPLOY_COMPOSE_ID`.
 As variáveis da aplicação ficam no próprio compose, no painel do Dokploy.
 
+## As três visões
+
+**Secretaria** (`/secretaria`) — a rede inteira, uma linha por CRE, ordenada pela fila.
+Fila em espera por grupamento, taxa de confirmação, tempo médio da vaga (da abertura à
+confirmação), vagas paradas, convocação expirada sem nenhuma resposta e déficit por
+bairro. É a tela de onde cobrar e onde investir.
+
+**CRE** (`/painel`) — as unidades do polo. Vagas paradas, prazos vencidos e vencendo
+hoje, ranking por confirmação e tentativas, unidades sem movimento em 14 dias,
+convocações que expiraram sem contato, inconsistências de cadastro e entrega por canal.
+
+**Diretor** (`/unidade/<código>`) — o dia da creche. Convocações em andamento com dia da
+régua e prazo, respostas aguardando decisão, vagas abertas, contato velho na frente da
+fila e ocupação por grupamento. Sem comparação com outras unidades: quem cobra é a CRE.
+
+O acesso segue o mesmo desenho. A Secretaria alcança a rede; a CRE, só as unidades do
+próprio polo; o servidor da creche, só a dele.
+
+## Capacidade instalada, do datalake da cidade
+
+Dois indicadores — o déficit por bairro e a ocupação por grupamento — comparam a fila com
+a capacidade real das turmas. Esse dado não está no sistema de inscrição: vem do
+[datalake do Rio](https://www.dados.rio/datalake), tabela `datario.educacao_basica.turma`.
+
+Exporte e carregue:
+
+```bash
+bq query --format=json --nouse_legacy_sql '
+  SELECT ano, id_escola, grupamento, turno, capacidade_sala
+  FROM `datario.educacao_basica.turma`
+  WHERE ano = 2026 AND nivel_ensino = "Educação Infantil"
+' > turmas.json
+
+bun run db:capacidade turmas.json
+```
+
+O importador soma as turmas por unidade, grupamento e turno, traduz o turno da SME
+(manhã, tarde, integral) para a jornada da fila (Integral, Parcial) e ignora escola que
+não está na base. Sem essa carga, as duas telas mostram traço em vez de fingir zero.
+
+Vale olhar também `datario.educacao_basica.escola`, que traz endereço, telefone e direção
+de cada unidade — hoje a convocação manda a família para o bairro, não para a rua.
+
 ## Arquitetura
 
 ```
-apps/web       Next.js App Router — fila, ficha, painel, auditoria e régua
+apps/web       Next.js App Router — fila, ficha, as três visões, auditoria e régua
 apps/api       Elysia — REST, Better Auth, webhooks dos canais, enfileiramento
 apps/worker    BullMQ — cadência de tentativas e expiração de prazo
-packages/core  máquina de estados, dias úteis, elegibilidade e consultas do painel
+packages/core  máquina de estados, dias úteis, elegibilidade e as consultas das três visões
 packages/db    schema Drizzle e migrações
 packages/auth  configuração do Better Auth
 packages/channels  interface Channel e adapters mock, Kapso, Contele e Resend
 packages/ai    classificação, resumo e rascunho com Claude, com regra local de reserva
-packages/seed  carga a partir do dadoscreche
+packages/seed  carga a partir do dadoscreche e da capacidade do datalake
 ```
 
 O navegador fala só com o Next, que repassa `/api/*` para o Elysia. O cookie de sessão

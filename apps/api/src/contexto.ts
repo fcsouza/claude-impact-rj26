@@ -1,4 +1,5 @@
 import { auth } from '@fila-viva/auth';
+import { db, type Papel, unidade } from '@fila-viva/db';
 import { Elysia, status } from 'elysia';
 import { PROBLEMAS } from './erros.ts';
 
@@ -7,17 +8,21 @@ export interface Autor {
   email: string;
   id: string;
   nome: string;
-  papel: 'unidade' | 'cre';
+  papel: Papel;
   unidadeId: string | null;
 }
 
+/** Exigência de sessão de uma rota, do mais aberto para o mais restrito. */
+export type Exigencia = boolean | 'cre' | 'secretaria';
+
 /**
- * Macro de sessão. `sessao: true` exige usuário; `sessao: 'cre'` exige o papel CRE.
- * A checagem de unidade fica em `podeVerUnidade` porque depende do recurso pedido.
+ * Macro de sessão. `sessao: true` exige usuário; `sessao: 'cre'` exige CRE ou
+ * Secretaria; `sessao: 'secretaria'` exige a visão da rede inteira.
+ * A checagem de unidade fica em `exigirUnidade` porque depende do recurso pedido.
  */
 export const contexto = new Elysia({ name: 'contexto' })
   .macro({
-    sessao: (exigencia: boolean | 'cre') => ({
+    sessao: (exigencia: Exigencia) => ({
       async resolve({ request }) {
         if (!exigencia) {
           return { autor: null as Autor | null };
@@ -32,7 +37,7 @@ export const contexto = new Elysia({ name: 'contexto' })
           id: string;
           name: string;
           email: string;
-          papel?: 'unidade' | 'cre';
+          papel?: Papel;
           unidadeId?: string | null;
           creId?: number | null;
         };
@@ -46,8 +51,9 @@ export const contexto = new Elysia({ name: 'contexto' })
           unidadeId: usuario.unidadeId ?? null,
         };
 
-        if (exigencia === 'cre' && autor.papel !== 'cre') {
-          return status(403, PROBLEMAS.semPermissao('ação restrita à equipe da CRE'));
+        const negado = negarPorPapel(autor, exigencia);
+        if (negado) {
+          return negado;
         }
 
         return { autor };
@@ -55,6 +61,16 @@ export const contexto = new Elysia({ name: 'contexto' })
     }),
   })
   .as('scoped');
+
+function negarPorPapel(autor: Autor, exigencia: Exigencia) {
+  if (exigencia === 'secretaria' && autor.papel !== 'secretaria') {
+    return status(403, PROBLEMAS.semPermissao('ação restrita à Secretaria'));
+  }
+  if (exigencia === 'cre' && autor.papel !== 'cre' && autor.papel !== 'secretaria') {
+    return status(403, PROBLEMAS.semPermissao('ação restrita à equipe da CRE'));
+  }
+  return null;
+}
 
 /**
  * O macro `sessao` já devolve 401 quando não há usuário; este ajudante só estreita o tipo
@@ -67,13 +83,49 @@ export function exigirAutor(autor: Autor | null | undefined): Autor {
   return autor;
 }
 
-/** Servidor de unidade só enxerga a própria unidade; a CRE enxerga o polo inteiro. */
-export function podeVerUnidade(autor: Autor, unidadeId: string): boolean {
-  return autor.papel === 'cre' || autor.unidadeId === unidadeId;
+/**
+ * De qual CRE é cada unidade. A tabela só muda quando a SME abre ou fecha creche,
+ * então vale um mapa em memória — a alternativa é um SELECT por linha da ficha.
+ */
+let polos: Map<string, number | null> | null = null;
+
+export async function carregarPolos(): Promise<Map<string, number | null>> {
+  if (!polos) {
+    const linhas = await db
+      .select({ creId: unidade.creId, escCodigo: unidade.escCodigo })
+      .from(unidade);
+    polos = new Map(linhas.map((l) => [l.escCodigo, l.creId]));
+  }
+  return polos;
 }
 
-export function exigirUnidade(autor: Autor, unidadeId: string) {
-  if (!podeVerUnidade(autor, unidadeId)) {
+/** Só para os testes e para o seed, que trocam o conteúdo da tabela debaixo do processo. */
+export function esquecerPolos() {
+  polos = null;
+}
+
+/**
+ * Secretaria enxerga a rede; a CRE, as unidades do próprio polo; o servidor da creche,
+ * só a dele. Sem o polo carregado a CRE não passa — negar é o lado seguro do erro.
+ */
+export function podeVerUnidade(
+  autor: Autor,
+  unidadeId: string,
+  polosCarregados: Map<string, number | null>
+): boolean {
+  if (autor.papel === 'secretaria') {
+    return true;
+  }
+  if (autor.papel === 'cre') {
+    const creDaUnidade = polosCarregados.get(unidadeId);
+    return autor.creId !== null && creDaUnidade === autor.creId;
+  }
+  return autor.unidadeId === unidadeId;
+}
+
+export async function exigirUnidade(autor: Autor, unidadeId: string) {
+  const carregados = await carregarPolos();
+  if (!podeVerUnidade(autor, unidadeId, carregados)) {
     return status(403, PROBLEMAS.semPermissao('esta unidade está fora do seu acesso'));
   }
   return null;
