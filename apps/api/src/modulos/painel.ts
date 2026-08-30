@@ -42,15 +42,20 @@ export const painelRotas = new Elysia({ prefix: '/api/painel' })
         prazos,
         expiradas,
         paradasSemMovimento,
+        contagemUnidades,
       ] = await Promise.all([
         vagasParadas(db, { creId, dias }),
         desempenhoPorUnidade(db, creId),
         ocupacaoPorBairro(db, creId),
-        inconsistencias(db),
+        inconsistencias(db, creId),
         entregaPorCanal(db),
         prazosDoDia(db, creId),
         expiradasSemResposta(db, creId),
         unidadesSemMovimento(db, { creId }),
+        db
+          .select({ total: count() })
+          .from(unidade)
+          .where(creId ? eq(unidade.creId, creId) : undefined),
       ]);
 
       return {
@@ -61,6 +66,7 @@ export const painelRotas = new Elysia({ prefix: '/api/painel' })
         paradas,
         prazos,
         semMovimento: paradasSemMovimento,
+        totalUnidades: Number(contagemUnidades[0]?.total ?? 0),
         unidades,
       };
     },

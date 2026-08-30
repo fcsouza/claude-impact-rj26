@@ -21,7 +21,10 @@ interface Painel {
     selecionadas: number;
   }[];
   canais: { canal: string; status: string; total: number }[];
-  expiradas: { unidadeId: string; unidade: string; total: number }[];
+  expiradas: {
+    linhas: { unidadeId: string; unidade: string; total: number }[];
+    temMais: boolean;
+  };
   inconsistencias: {
     alunoAnon: string;
     nome: string;
@@ -56,12 +59,16 @@ interface Painel {
     vencido: boolean;
   }[];
   semMovimento: {
-    unidadeId: string;
-    unidade: string;
-    bairro: string | null;
-    espera: number;
-    ultimaVaga: string | null;
-  }[];
+    linhas: {
+      unidadeId: string;
+      unidade: string;
+      bairro: string | null;
+      espera: number;
+      ultimaVaga: string | null;
+    }[];
+    temMais: boolean;
+  };
+  totalUnidades: number;
   unidades: {
     unidadeId: string;
     unidade: string;
@@ -85,8 +92,8 @@ export default async function PainelCre({
   const { dias } = filtros;
   const limite = dias ?? '2';
   const p = await api<Painel>(`/api/painel?dias=${limite}`);
-  const semMovimento = paginar(p.semMovimento, filtros.pm, 15);
-  const ultimaVagaIgual = valorRepetido(p.semMovimento, (u) =>
+  const semMovimento = paginar(p.semMovimento.linhas, filtros.pm, 15);
+  const ultimaVagaIgual = valorRepetido(p.semMovimento.linhas, (u) =>
     u.ultimaVaga ? data(u.ultimaVaga) : 'nunca'
   );
   const desempenho = paginar(p.unidades, filtros.pu, 15);
@@ -122,7 +129,7 @@ export default async function PainelCre({
       rotulo: 'Prazos no limite',
       valor: numero(p.prazos.length),
     },
-    { dica: 'processo 195/2025', rotulo: 'Unidades no polo', valor: numero(p.unidades.length) },
+    { dica: 'processo 195/2025', rotulo: 'Unidades no polo', valor: numero(p.totalUnidades) },
   ];
 
   return (
@@ -132,8 +139,8 @@ export default async function PainelCre({
           <div className="eyebrow">Coordenadoria Regional de Educação</div>
           <h1>Painel de gargalos</h1>
           <p className="subtitulo">
-            {p.unidades.length} unidades · processo 195/2025 · alerta acima de {limite} dias sem
-            resposta
+            {numero(p.totalUnidades)} unidades · processo 195/2025 · alerta acima de {limite} dias
+            sem resposta
           </p>
         </div>
         <form className="filtros" method="get" style={{ margin: 0 }}>
@@ -297,9 +304,10 @@ export default async function PainelCre({
           <span className="cod">
             fila cheia e nenhuma vaga aberta em 14 dias
             {ultimaVagaIgual ? ` · última vaga: ${ultimaVagaIgual} em todas` : ''}
+            {p.semMovimento.temMais ? ' · mostrando as 50 primeiras' : ''}
           </span>
         </div>
-        {p.semMovimento.length === 0 ? (
+        {p.semMovimento.linhas.length === 0 ? (
           <p className="vazio">Todas as unidades com fila movimentaram vaga no período.</p>
         ) : (
           <table>
@@ -330,7 +338,7 @@ export default async function PainelCre({
             </tbody>
           </table>
         )}
-        {p.semMovimento.length > 0 ? (
+        {p.semMovimento.linhas.length > 0 ? (
           <Paginacao
             base="/painel"
             filtros={filtros}
@@ -345,9 +353,12 @@ export default async function PainelCre({
       <div className="cartao">
         <div className="cartao-titulo">
           <h2>Convocação expirada sem resposta</h2>
-          <span className="cod">contato da família não alcançou ninguém</span>
+          <span className="cod">
+            contato da família não alcançou ninguém
+            {p.expiradas.temMais ? ' · mostrando as 50 primeiras' : ''}
+          </span>
         </div>
-        {p.expiradas.length === 0 ? (
+        {p.expiradas.linhas.length === 0 ? (
           <p className="vazio">Nenhuma convocação expirou sem resposta.</p>
         ) : (
           <table>
@@ -359,7 +370,7 @@ export default async function PainelCre({
               </tr>
             </thead>
             <tbody>
-              {p.expiradas.map((e) => (
+              {p.expiradas.linhas.map((e) => (
                 <tr key={e.unidadeId}>
                   <td>{e.unidade}</td>
                   <td className="num">{numero(e.total)}</td>

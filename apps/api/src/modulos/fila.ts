@@ -1,24 +1,54 @@
 import { filaDaUnidade, GRUPAMENTOS, kpisDaUnidade, resolverPeriodo } from '@fila-viva/core';
 import { criterio, db, unidade } from '@fila-viva/db';
-import { eq } from 'drizzle-orm';
+import { asc, count, eq } from 'drizzle-orm';
 import { Elysia } from 'elysia';
 import { z } from 'zod';
-import { contexto, exigirAutor, exigirUnidade } from '../contexto.ts';
+import { type Autor, contexto, exigirAutor, exigirUnidade } from '../contexto.ts';
+
+const PAGINA_UNIDADES = 50;
+
+/** Secretaria vê a rede; CRE, o próprio polo; unidade, só ela. Nunca em memória. */
+function recorteDeUnidades(autor: Autor) {
+  if (autor.papel === 'secretaria') {
+    return;
+  }
+  if (autor.papel === 'cre') {
+    return eq(unidade.creId, autor.creId ?? -1);
+  }
+  return eq(unidade.escCodigo, autor.unidadeId ?? '');
+}
 
 export const filaRotas = new Elysia({ prefix: '/api/fila' })
   .use(contexto)
+  /**
+   * Lista da barra lateral. O recorte é do banco, não da memória: a Secretaria enxerga
+   * mais de duas mil unidades e a tela usa oito. Devolve o total à parte para o "e mais N".
+   */
   .get(
     '/unidades',
-    async ({ autor }) => {
-      const todas = await db.select().from(unidade);
-      if (autor?.papel === 'secretaria') {
-        return todas;
-      }
-      return autor?.papel === 'cre'
-        ? todas.filter((u) => autor.creId !== null && u.creId === autor.creId)
-        : todas.filter((u) => u.escCodigo === autor?.unidadeId);
+    async ({ autor, query }) => {
+      const a = exigirAutor(autor);
+      const alcance = recorteDeUnidades(a);
+      const limite = Math.min(Number(query.limite ?? PAGINA_UNIDADES) || PAGINA_UNIDADES, 500);
+
+      const [unidades, [contagem]] = await Promise.all([
+        db
+          .select({
+            bairro: unidade.bairro,
+            creId: unidade.creId,
+            escCodigo: unidade.escCodigo,
+            nome: unidade.nome,
+          })
+          .from(unidade)
+          .where(alcance)
+          .orderBy(asc(unidade.nome))
+          .limit(limite),
+        db.select({ total: count() }).from(unidade).where(alcance),
+      ]);
+
+      return { total: Number(contagem?.total ?? 0), unidades };
     },
-    { sessao: true }
+    { query: z.object({ limite: z.string().optional() }), sessao: true }
   )
   .get(
     '/:unidadeId',
