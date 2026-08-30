@@ -1,13 +1,24 @@
 # Fila Viva
 
-**Equipe 26** — Laís Rodrigues, Fabricio Souza, Mariana Bastos, Danielle e Vanessa Rocha.
-Claude Impact Lab Rio 2026.
-
 CRM de fila e convocação de creche para a Secretaria Municipal de Educação do Rio.
 Construído sobre as bases públicas do [CIT-SME-RJ/dadoscreche](https://github.com/CIT-SME-RJ/dadoscreche),
 processo 195/2025.
 
-O problema, na letra do briefing: a equipe da CRE acompanha milhares de inscrições sem um
+Aplicação em https://filaviva.pulsolab.com.br
+
+## Equipe 26
+
+Claude Impact Lab Rio, 2026.
+
+- Laís Rodrigues
+- Fabricio Souza
+- Mariana Bastos
+- Danielle
+- Vanessa Rocha
+
+## O problema
+
+Na letra do briefing: a equipe da CRE acompanha milhares de inscrições sem um
 painel que diga, por unidade e por criança, há quanto tempo uma vaga está aguardando
 confirmação — nem que aponte conflitos dentro do mesmo cadastro. A convocação é feita à
 mão pelas escolas, uma tentativa por dia durante três dias, sem registro com horário.
