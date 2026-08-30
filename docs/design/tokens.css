@@ -1,0 +1,89 @@
+/* Fila Viva — CRM de convocação de creche · Prefeitura do Rio / SME
+   Marca alinhada ao matricula.rio: azul institucional #034C7F, cyan #00BFF2,
+   tinta #181818, botão com raio 5px e Cera Pro na tipografia.
+   Cera Pro é licenciada: vem primeiro na pilha e cai em Figtree, que tem o mesmo
+   desenho geométrico e é livre. Número conferível continua em IBM Plex Mono. */
+:root {
+  /* superfícies */
+  --fv-ink: #12283c;
+  --fv-ink-hover: #1c3852;
+  --fv-ink-border: #2a4761;
+  --fv-paper: #f4f5f6;
+  --fv-surface: #ffffff;
+  --fv-surface-sunken: #f8f9fa;
+  --fv-row-hover: #f2f7fb;
+  --fv-row-alert: #fffbf2;
+
+  /* bordas */
+  --fv-border: #e4e7ea;
+  --fv-border-strong: #d2d7dc;
+  --fv-border-input-hover: #a9b2bb;
+  --fv-divider: #edeff1;
+  --fv-divider-soft: #f4f5f7;
+
+  /* texto */
+  --fv-text: #181818;
+  --fv-text-2: #424242;
+  --fv-text-3: #707070;
+  --fv-text-disabled: #a0a9b2;
+  --fv-text-on-ink: #edf2f6;
+  --fv-text-on-ink-2: #b6c6d3;
+  --fv-text-on-ink-3: #7f94a6;
+
+  /* marca — matricula.rio */
+  --fv-primary: #034c7f;
+  --fv-primary-hover: #023a61;
+  --fv-primary-soft: #e4eef6;
+  --fv-primary-soft-border: #c3d8e9;
+  --fv-cyan: #00bff2;
+  --fv-cyan-soft: #e1f7fe;
+  --fv-civic-yellow: #f2c14e; /* só na assinatura institucional em tipografia */
+
+  /* semântica de situação */
+  --fv-warn: #8a5a00;
+  --fv-warn-soft: #faefd8;
+  --fv-warn-soft-border: #eedcb4;
+  --fv-danger: #a32218;
+  --fv-danger-hover: #8c3a32;
+  --fv-danger-soft: #fae6e3;
+  --fv-danger-soft-border: #efcfc9;
+  --fv-success: #1d6b4b;
+  --fv-success-hover: #185b3f;
+  --fv-success-soft: #e5f1ea;
+  --fv-success-soft-border: #c9e1d4;
+  --fv-neutral-soft: #f1efea;
+
+  /* IA (Claude) */
+  --fv-ai: #4a3b8c;
+  --fv-ai-hover: #3c3273;
+  --fv-ai-soft: #ede9f9;
+  --fv-ai-soft-border: #d6cdf2;
+
+  /* tipografia */
+  --fv-font-sans:
+    "Cera Pro", "Figtree", "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --fv-font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+  --fv-text-display: 700 34px / 1.05 var(--fv-font-sans);
+  --fv-text-screen-title: 700 23px / 1.15 var(--fv-font-sans);
+  --fv-text-card-title: 600 12.5px / 1.2 var(--fv-font-sans);
+  --fv-text-row: 500 13.5px / 1.3 var(--fv-font-sans);
+  --fv-text-body: 400 13px / 1.6 var(--fv-font-sans);
+  --fv-text-metric: 500 27px / 1 var(--fv-font-mono);
+  --fv-text-id: 400 12.5px / 1.4 var(--fv-font-mono);
+  --fv-text-label:
+    500 10px / 1 var(--fv-font-mono); /* + letter-spacing .11em, uppercase */
+
+  /* espaço, raio, elevação */
+  --fv-space-1: 4px;
+  --fv-space-2: 8px;
+  --fv-space-3: 12px;
+  --fv-space-4: 16px;
+  --fv-space-6: 24px;
+  --fv-space-10: 40px;
+  --fv-radius-sm: 5px;
+  --fv-radius-md: 6px;
+  --fv-radius-lg: 8px;
+  --fv-radius-pill: 99px;
+  --fv-shadow-button: 0 1px 2px rgba(3, 76, 127, 0.18);
+  --fv-shadow-overlay: 0 8px 24px rgba(18, 40, 60, 0.16);
+}

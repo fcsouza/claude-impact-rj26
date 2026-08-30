@@ -1,0 +1,24 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.11/schema.json",
+  "extends": [
+    "./node_modules/ultracite/config/biome/core/biome.jsonc",
+    "./node_modules/ultracite/config/biome/react/biome.jsonc",
+    "./node_modules/ultracite/config/biome/next/biome.jsonc"
+  ],
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 100
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "semicolons": "always",
+      "trailingCommas": "es5"
+    }
+  },
+  "files": {
+    "includes": ["!**/node_modules", "!**/.next", "!**/drizzle", "!.dados"]
+  }
+}

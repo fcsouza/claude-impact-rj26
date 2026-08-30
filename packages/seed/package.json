@@ -1,0 +1,15 @@
+{
+  "name": "@fila-viva/seed",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@faker-js/faker": "^10.6.0",
+    "@fila-viva/auth": "workspace:*",
+    "@fila-viva/core": "workspace:*",
+    "@fila-viva/db": "workspace:*",
+    "drizzle-orm": "^0.45.2"
+  }
+}

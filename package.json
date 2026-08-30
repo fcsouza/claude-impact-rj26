@@ -1,0 +1,29 @@
+{
+  "name": "fila-viva",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "bun run --cwd apps/web build",
+    "db:generate": "bun run --cwd packages/db generate",
+    "db:migrate": "bun run --cwd packages/db migrate",
+    "db:seed": "bun run --cwd packages/seed seed",
+    "db:studio": "bun run --cwd packages/db studio",
+    "dev": "bun run --filter '*' dev",
+    "dev:api": "bun run --cwd apps/api dev",
+    "dev:web": "bun run --cwd apps/web dev",
+    "dev:worker": "bun run --cwd apps/worker dev",
+    "format": "ultracite fix",
+    "lint:biome": "ultracite check",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit -p tsconfig.json && bun run --cwd apps/web typecheck"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.3",
+    "ultracite": "^7.10.7"
+  }
+}

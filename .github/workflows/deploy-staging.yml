@@ -1,0 +1,44 @@
+name: Deploy staging
+
+# Sobe API e front no Dokploy. Os segredos ficam em Settings → Secrets → Actions:
+#   DOKPLOY_URL           endereço da instância, ex.: https://dokploy.exemplo.com
+#   DOKPLOY_API_KEY       token gerado em Settings → Profile → API/CLI
+#   DOKPLOY_API_ID        id da aplicação da API no Dokploy
+#   DOKPLOY_WEB_ID        id da aplicação do front no Dokploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Disparar deploy da API
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_API_ID }}
+        run: |
+          curl -sS --fail-with-body -X POST "$DOKPLOY_URL/api/application.deploy" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -H 'content-type: application/json' \
+            -d "{\"json\":{\"applicationId\":\"$APP_ID\"}}"
+
+      - name: Disparar deploy do front
+        env:
+          DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
+          DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}
+          APP_ID: ${{ secrets.DOKPLOY_WEB_ID }}
+        run: |
+          curl -sS --fail-with-body -X POST "$DOKPLOY_URL/api/application.deploy" \
+            -H "x-api-key: $DOKPLOY_API_KEY" \
+            -H 'content-type: application/json' \
+            -d "{\"json\":{\"applicationId\":\"$APP_ID\"}}"
