@@ -9,7 +9,7 @@ import {
   tentativa,
   vaga,
 } from '@fila-viva/db';
-import { and, asc, desc, eq, inArray, ne, notInArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, like, ne, notInArray, or } from 'drizzle-orm';
 import { proximoDiaUtil, somarDiasUteis } from './dias-uteis.ts';
 import { auditar, transicionar } from './estados.ts';
 import { filaExpiracoes, filaTentativas, OPCOES_JOB } from './filas.ts';
@@ -313,6 +313,43 @@ export async function estenderPrazo(
   );
 
   return { prazoFim: novoPrazo };
+}
+
+/**
+ * Acha a convocação aberta de quem escreveu, pelo telefone.
+ *
+ * A família quase nunca responde citando a mensagem original, então o webhook chega
+ * sem o id da mensagem. O que sobra é o número: comparamos pelos últimos oito dígitos,
+ * que sobrevivem ao nono dígito, ao DDI e à formatação de cada provedor.
+ */
+export async function convocacaoAbertaPorTelefone(db: Database, telefone: string) {
+  const digitos = telefone.replace(/\D/g, '');
+  if (digitos.length < 8) {
+    return null;
+  }
+  const finalDoNumero = `%${digitos.slice(-8)}`;
+
+  const [linha] = await db
+    .select({
+      convocacaoId: convocacao.id,
+      iniciadaEm: convocacao.iniciadaEm,
+      inscricaoId: inscricao.id,
+      nome: inscricao.nomeFicticio,
+    })
+    .from(convocacao)
+    .innerJoin(opcao, eq(convocacao.opcaoId, opcao.id))
+    .innerJoin(inscricao, eq(opcao.inscricaoId, inscricao.id))
+    .innerJoin(contato, eq(contato.inscricaoId, inscricao.id))
+    .where(
+      and(
+        eq(convocacao.status, 'aberta'),
+        or(like(contato.whatsapp, finalDoNumero), like(contato.telefone, finalDoNumero))
+      )
+    )
+    .orderBy(desc(convocacao.iniciadaEm))
+    .limit(1);
+
+  return linha ?? null;
 }
 
 /** Contato vigente da inscrição — a maior versão. */

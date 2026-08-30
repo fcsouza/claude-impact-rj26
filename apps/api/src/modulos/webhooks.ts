@@ -1,5 +1,6 @@
 import { classificarResposta, rascunharResposta } from '@fila-viva/ai';
 import { canalPorProvedor } from '@fila-viva/channels';
+import { convocacaoAbertaPorTelefone } from '@fila-viva/core';
 import {
   convocacao,
   db,
@@ -17,15 +18,65 @@ import { PROBLEMAS } from '../erros.ts';
 
 const TOKEN = process.env.WEBHOOK_TOKEN ?? '';
 
+/** Segredo com que a Kapso assina o corpo, em HMAC-SHA256 hex, no X-Webhook-Signature. */
+const SEGREDO_KAPSO = process.env.KAPSO_WEBHOOK_SECRET ?? '';
+
+async function assinaturaConfere(corpoCru: string, assinatura: string | null): Promise<boolean> {
+  if (!(SEGREDO_KAPSO && assinatura)) {
+    // Sem segredo configurado, a barreira é só o token na URL.
+    return !SEGREDO_KAPSO;
+  }
+
+  const chave = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(SEGREDO_KAPSO),
+    { hash: 'SHA-256', name: 'HMAC' },
+    false,
+    ['sign']
+  );
+  const bytes = await crypto.subtle.sign('HMAC', chave, new TextEncoder().encode(corpoCru));
+  const esperada = Array.from(new Uint8Array(bytes))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  // Comparação de tempo constante: um `===` vaza o tamanho do prefixo correto.
+  if (esperada.length !== assinatura.length) {
+    return false;
+  }
+  let diferenca = 0;
+  for (let i = 0; i < esperada.length; i += 1) {
+    diferenca |= esperada.charCodeAt(i) ^ assinatura.charCodeAt(i);
+  }
+  return diferenca === 0;
+}
+
 /**
  * Webhooks dos provedores. Sem assinatura publicada, a barreira é o token na URL
  * (RNF3). O webhook nunca muda situação — no máximo registra e sugere.
  */
 export const webhookRotas = new Elysia({ prefix: '/api/webhooks' }).post(
   '/:provedor',
-  async ({ params, query, body }) => {
+  async ({ params, query, body, request }) => {
     if (!TOKEN || query.token !== TOKEN) {
       return status(401, PROBLEMAS.semSessao());
+    }
+
+    // O corpo chega como texto justamente para conferir a assinatura sobre os bytes crus.
+    const corpoCru = typeof body === 'string' ? body : JSON.stringify(body);
+    if (params.provedor === 'kapso') {
+      const confere = await assinaturaConfere(corpoCru, request.headers.get('x-webhook-signature'));
+      if (!confere) {
+        return status(401, PROBLEMAS.semSessao());
+      }
+    }
+
+    let corpoLido: unknown = body;
+    if (typeof body === 'string') {
+      try {
+        corpoLido = JSON.parse(body);
+      } catch {
+        return status(400, PROBLEMAS.invalido('corpo do webhook não é JSON'));
+      }
     }
 
     const canal = canalPorProvedor(params.provedor);
@@ -33,7 +84,7 @@ export const webhookRotas = new Elysia({ prefix: '/api/webhooks' }).post(
       return status(404, PROBLEMAS.naoEncontrado(`provedor ${params.provedor} desconhecido`));
     }
 
-    const atualizacoes = canal.parseWebhook(body);
+    const atualizacoes = canal.parseWebhook(corpoLido);
     const processadas: string[] = [];
 
     for (const atualizacao of atualizacoes) {
@@ -41,6 +92,23 @@ export const webhookRotas = new Elysia({ prefix: '/api/webhooks' }).post(
       const alvo = await acharTentativa(atualizacao);
 
       if (!alvo) {
+        // Sem tentativa correspondente, só a resposta da família ainda interessa:
+        // ela entra pela convocação aberta de quem escreveu.
+        if (atualizacao.inbound?.texto && atualizacao.inbound.remetente) {
+          const convocacaoDoTelefone = await convocacaoAbertaPorTelefone(
+            db,
+            atualizacao.inbound.remetente
+          );
+          if (convocacaoDoTelefone) {
+            const registrada = await registrarInbound({
+              canal: canal.nome,
+              convocacaoId: convocacaoDoTelefone.convocacaoId,
+              remetente: atualizacao.inbound.remetente,
+              texto: atualizacao.inbound.texto,
+            });
+            processadas.push(registrada.id);
+          }
+        }
         continue;
       }
 
@@ -65,8 +133,9 @@ export const webhookRotas = new Elysia({ prefix: '/api/webhooks' }).post(
     return { inbounds: processadas, recebidas: atualizacoes.length };
   },
   {
-    body: z.unknown(),
     params: z.object({ provedor: z.string() }),
+    // Texto, não objeto: a assinatura é calculada sobre o corpo cru.
+    parse: 'text',
     query: z.object({ token: z.string().optional() }),
   }
 );

@@ -21,6 +21,28 @@ Fora da janela de 24 horas a Meta só entrega template aprovado. Sem
 escreveu para a unidade nas últimas 24 horas. O template de convocação recebe cinco
 valores, nesta ordem: nome da criança, unidade, turno, grupamento e prazo.
 
+### Webhook
+
+O endereço público é o próprio front, que repassa para a API:
+`https://<dominio>/api/webhooks/kapso?token=<WEBHOOK_TOKEN>`. Não precisa de domínio
+separado para a API.
+
+A Kapso assina o corpo em HMAC-SHA256 e manda no cabeçalho `X-Webhook-Signature`. A rota
+confere a assinatura sobre os bytes crus, com comparação de tempo constante, antes de
+interpretar o JSON. Sem `KAPSO_WEBHOOK_SECRET` configurado, a barreira volta a ser só o
+token — bom para desenvolvimento, não para produção.
+
+Dois formatos são aceitos: o da Kapso (`event` + `message` + `conversation`) e o cru da
+Meta (`entry` → `changes`). O primeiro é o que a Kapso manda por padrão e traz o telefone
+de quem escreveu, que é como a resposta encontra a convocação.
+
+### Como a resposta encontra a convocação
+
+A família quase nunca responde citando a mensagem original, então o webhook chega sem o id
+da mensagem. Quando não há tentativa correspondente, o sistema procura a convocação aberta
+pelo telefone de quem escreveu, comparando os últimos oito dígitos — o que sobrevive ao
+nono dígito, ao DDI e à formatação de cada provedor.
+
 ## SMS (Comtele)
 
 API v2: `POST https://sms.comtele.com.br/api/v2/send`, cabeçalho `auth-key`, corpo com
